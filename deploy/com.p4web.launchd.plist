@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOS launchd user agent for p4-web.
+
+  1. Edit the paths below (run.sh location) and any environment
+     overrides.
+  2. cp deploy/com.p4web.launchd.plist ~/Library/LaunchAgents/com.p4web.plist
+  3. launchctl load ~/Library/LaunchAgents/com.p4web.plist
+
+  Logs land in /tmp/p4web.out|err. Unload with `launchctl unload`.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.p4web</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/CHANGE_ME/p4/playground/scripts/p4-web/run.sh</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>P4WEB_PORT</key>
+    <string>8080</string>
+    <!-- Uncomment to pin the Perforce server address:
+    <key>P4WEB_P4PORT</key>
+    <string>ssl::1666</string>
+    -->
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/p4web.out</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/p4web.err</string>
+</dict>
+</plist>

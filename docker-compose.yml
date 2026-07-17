@@ -1,0 +1,17 @@
+services:
+  p4web:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      # Address of your Perforce server as seen FROM the container.
+      # host.docker.internal reaches the docker host (Mac/Windows).
+      P4WEB_P4PORT: "ssl:host.docker.internal:1666"
+      # Accept the server's SSL fingerprint on first connect.
+      P4WEB_AUTO_TRUST: "1"
+    volumes:
+      - p4web-data:/data
+    restart: unless-stopped
+
+volumes:
+  p4web-data:

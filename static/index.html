@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>p4-web</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/vendor/hljs-github.min.css" id="hl-light">
+<link rel="stylesheet" href="/static/vendor/hljs-github-dark.min.css" id="hl-dark" disabled>
+</head>
+<body>
+<div id="login-screen" class="hidden">
+  <form id="login-form" class="login-card">
+    <h1>p4-web</h1>
+    <p class="login-sub" id="login-port"></p>
+    <p id="login-notice" class="login-notice hidden"></p>
+    <label>User
+      <input type="text" id="login-user" autocomplete="username" required>
+    </label>
+    <label>Password
+      <input type="password" id="login-password" autocomplete="current-password" required>
+    </label>
+    <button type="submit" id="login-btn">Log in</button>
+    <p id="login-error" class="login-error hidden"></p>
+  </form>
+</div>
+
+<div id="app" class="hidden">
+  <header class="topbar">
+    <span class="brand">p4-web</span>
+    <nav class="topnav">
+      <a href="#/browse" data-nav="browse">Depot</a>
+      <a href="#/changes" data-nav="changes">Changes</a>
+      <a href="#/my" data-nav="my">My Changes</a>
+      <div class="dropdown" id="more-menu">
+        <a href="#" class="dropdown-toggle" data-nav="more">More &#9662;</a>
+        <div class="dropdown-body">
+          <a href="#/labels">Labels</a>
+          <a href="#/jobs">Jobs</a>
+          <a href="#/branches">Branches</a>
+          <a href="#/streams">Streams</a>
+          <a href="#/users">Users &amp; Groups</a>
+          <a href="#/folderdiff">Folder diff</a>
+        </div>
+      </div>
+    </nav>
+    <form id="search-form" class="searchbar">
+      <select id="search-kind">
+        <option value="files">Files</option>
+        <option value="content">Content</option>
+      </select>
+      <input type="search" id="search-q" placeholder="Search depot…">
+    </form>
+    <div class="topbar-right">
+      <button id="theme-btn" class="theme-btn" title="Theme">&#9681;</button>
+      <span id="whoami"></span>
+      <button id="logout-btn" class="linklike">Log out</button>
+    </div>
+  </header>
+  <button id="tree-fab" class="tree-fab hidden" title="Depot tree">&#128193;</button>
+  <main id="main">
+    <aside id="sidebar" class="sidebar hidden">
+      <div class="sidebar-head">
+        <span class="sidebar-title">Depot tree</span>
+        <button id="tree-collapse" class="ttog-btn" title="Collapse">&#171;</button>
+      </div>
+      <div id="tree"></div>
+    </aside>
+    <div id="view" class="view"></div>
+  </main>
+</div>
+
+<dialog id="cl-picker">
+  <form id="clp-form" method="dialog">
+    <h3>Choose a changelist</h3>
+    <select id="clp-select" size="1"></select>
+    <div id="clp-desc-wrap" class="hidden">
+      <textarea id="clp-desc" rows="3" placeholder="New changelist description…"></textarea>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="dlg-cancel" id="clp-cancel">Cancel</button>
+      <button type="submit" class="dlg-ok">OK</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="submit-confirm">
+  <form id="sc-form" method="dialog">
+    <h3>Submit changelist <span id="sc-change"></span>?</h3>
+    <pre id="sc-desc" class="sc-desc"></pre>
+    <ul id="sc-files" class="sc-files"></ul>
+    <div class="dlg-actions">
+      <button type="button" class="dlg-cancel" id="sc-cancel">Cancel</button>
+      <button type="submit" class="dlg-ok" id="sc-ok">Submit</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="/static/vendor/highlight.min.js"></script>
+<script src="/static/vendor/marked.min.js"></script>
+<script src="/static/vendor/purify.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

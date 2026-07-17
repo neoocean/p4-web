@@ -1,0 +1,31 @@
+# systemd unit for p4-web (Linux).
+#
+#   1. Adjust User/WorkingDirectory/Environment below.
+#   2. sudo cp deploy/p4web.service /etc/systemd/system/
+#   3. sudo systemctl daemon-reload && sudo systemctl enable --now p4web
+#
+# run.sh creates the virtualenv on first start; make sure python3 and
+# the p4 CLI are on PATH for the service user.
+
+[Unit]
+Description=p4-web - lightweight Perforce web UI
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=CHANGE_ME
+WorkingDirectory=/opt/p4-web
+ExecStart=/opt/p4-web/run.sh
+Restart=on-failure
+RestartSec=3
+Environment=P4WEB_PORT=8080
+# Environment=P4WEB_P4PORT=ssl:perforce.example.com:1666
+
+# Hardening (relax if your setup needs more access)
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
