@@ -543,6 +543,13 @@ def diff(
     as plain revision numbers (rev1/rev2) or as raw p4 specs like
     "#3", "@12345", "@=12345" (shelved) via spec1/spec2."""
     session = require_session(p4web_session)
+    # Both paths must be real depot filespecs. Without this guard a value
+    # like "-S" would reach `p4 diff2` as a flag-like token (argument
+    # injection); every peer endpoint enforces the same "//" prefix.
+    if not path.startswith("//"):
+        raise HTTPException(status_code=400, detail="Path must start with //")
+    if path2 is not None and not path2.startswith("//"):
+        raise HTTPException(status_code=400, detail="Path must start with //")
     s1 = _validate_spec(spec1) if spec1 else (f"#{rev1}" if rev1 else None)
     s2 = _validate_spec(spec2) if spec2 else (f"#{rev2}" if rev2 else None)
     if not s1 or not s2:
