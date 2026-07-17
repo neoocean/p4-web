@@ -599,7 +599,7 @@
     </div>
     <div class="content">
       <h2>Running in under a minute</h2>
-      <p class="kicker">One script creates the venv, installs two dependencies, and serves.</p>
+      <p class="kicker">One script creates the venv, installs three pinned dependencies, and serves.</p>
       <pre class="term"><span class="p">$</span> git clone https://github.com/neoocean/p4-web.git &amp;&amp; cd p4-web
 <span class="p">$</span> ./run.sh
 <span class="c"># equivalent to:</span>
@@ -619,14 +619,15 @@
     </div>
     <div class="content">
       <h2>Security, the boring way</h2>
-      <p class="kicker">Reviewed end-to-end (code review, security audit, red team) with the
-        write-up in the repo. The core boundaries:</p>
+      <p class="kicker">Reviewed end-to-end across two standing passes — code review, security
+        audit, and a live red team against a running instance. The core boundaries:</p>
       <ul class="sec-list">
         <li><strong>Your ticket, your permissions.</strong> Every API call runs <code>p4</code> with the session’s own user and ticket — Perforce protections apply exactly as in P4V.</li>
         <li><strong>No ticket leakage.</strong> <code>P4TICKETS</code> points at <code>/dev/null</code> for every subprocess; the server’s own tickets file can never authenticate a web user.</li>
         <li><strong>Passwords are never stored.</strong> Credentials are exchanged for a <code>p4 login</code> ticket; you can paste a ticket instead, Swarm-style.</li>
         <li><strong>Command allowlist.</strong> The p4 wrapper only permits known commands; write operations are confined to your own p4-web changelists and audited.</li>
         <li><strong>Hardened endpoints.</strong> Streamed raw downloads and bounded upload spooling (no 100&nbsp;MB buffers), per-session rate limits, secure cookies, login throttling.</li>
+        <li><strong>Boring deploys.</strong> The container runs as a non-root user, the bundled <code>p4</code> client is verified against a published SHA-256, and every Python dependency is pinned to an exact version.</li>
       </ul>
     </div>
   </section>
@@ -663,6 +664,7 @@
                command allowlist, error → HTTP mapping
   sessions.py  cookie sid → {user, ticket}, SQLite-backed
   index.py     per-user changelist search index (respects protections)
+  workspace.py per-user p4web-&lt;user&gt; workspaces backing the write ops
 static/
   index.html   login screen + app shell
   app.js       hash-routed SPA — no framework, no build
@@ -676,7 +678,7 @@ static/
 
   <footer>
     <span>p4-web — built in the open, one numbered changelist at a time.</span>
-    <span><a href="https://github.com/neoocean/p4-web">GitHub</a> · <a href="https://github.com/neoocean/p4-web/archive/refs/heads/main.zip">source .zip</a> · CL 65134 → 65266 · 2026</span>
+    <span><a href="https://github.com/neoocean/p4-web">GitHub</a> · <a href="https://github.com/neoocean/p4-web/archive/refs/heads/main.zip">source .zip</a> · CL 65134 → 65326 · 2026</span>
   </footer>
 
 </div>
