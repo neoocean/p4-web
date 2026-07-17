@@ -1367,16 +1367,103 @@ function indexBarHtml(s, building) {
   const built = s && s.changes > 0;
   const when = built && s.updated ? fmtTime(s.updated) : "—";
   const range = built ? ` (#${s.oldest}–#${s.newest})` : "";
-  const older = built && !s.fullyBackfilled
-    ? ' · <span class="muted">older history not indexed yet</span>' : "";
+  const canBackfill = built && !s.fullyBackfilled;
+  let older = "";
+  if (canBackfill) {
+    older = _backfillRun
+      ? ' · <span class="muted">indexing older history…</span>'
+      : ' · <span class="muted">older history not indexed yet</span>';
+  }
   const note = building ? ' · <span class="muted">building…</span>' : "";
   return `<div class="index-bar">
     <span>&#9889; Indexed ${built ? s.changes.toLocaleString() : 0} changes${range} · updated ${when}${older}${note}</span>
     <span class="index-bar-actions">
       <button type="button" id="idx-refresh" class="linklike">Refresh</button>
-      ${built && !s.fullyBackfilled ? '<button type="button" id="idx-older" class="linklike">Index older</button>' : ""}
+      ${canBackfill ? `<button type="button" id="idx-older" class="linklike">${
+        _backfillRun ? "Stop" : "Index older"}</button>` : ""}
     </span>
   </div>`;
+}
+
+// "Index older" walks history backward one batch at a time instead of
+// stopping after a single batch: it keeps calling refresh?backfill=1
+// until the depot runs dry, the user hits Stop, or they navigate off the
+// Changes page. State is module-level so a re-render doesn't lose the
+// loop, and the bar is patched in place so the listing doesn't flicker
+// under the user between batches.
+let _backfillRun = false;
+let _lastIdxStatus = null;
+
+// Forward catch-up only; walking backward is runBackfill()'s job.
+async function refreshIndex(btn) {
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Working…";
+  try {
+    await api("/api/index/refresh?backfill=0", { method: "POST" });
+    route();
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = label;
+    if (err.status !== 401) alert("Index refresh failed: " + err.message);
+  }
+}
+
+function bindIndexBar(view) {
+  const idxR = $("#idx-refresh", view);
+  if (idxR) idxR.addEventListener("click", () => refreshIndex(idxR));
+  const idxO = $("#idx-older", view);
+  if (idxO) {
+    idxO.addEventListener("click", () => {
+      if (_backfillRun) _backfillRun = false;  // Stop: loop exits after the in-flight batch
+      else runBackfill();
+    });
+  }
+}
+
+function paintIndexBar(s) {
+  if (s) _lastIdxStatus = s;
+  const bar = $(".index-bar");
+  if (!bar) return;
+  bar.outerHTML = indexBarHtml(_lastIdxStatus, false);
+  bindIndexBar(document);
+}
+
+async function runBackfill() {
+  if (_backfillRun) return;
+  _backfillRun = true;
+  paintIndexBar(null);  // flip the button to Stop right away
+  let prevOldest = null;
+  let stalls = 0;
+  try {
+    while (_backfillRun && location.hash.startsWith("#/changes")) {
+      let s;
+      try {
+        s = await api("/api/index/refresh?backfill=1", { method: "POST" });
+      } catch (err) {
+        if (err.status !== 401) alert("Index backfill failed: " + err.message);
+        break;
+      }
+      paintIndexBar(s);
+      if (s.fullyBackfilled) break;
+      // A batch that leaves `oldest` where it was means p4 has no older
+      // changes to give, or a concurrent refresh held the per-user lock.
+      // Pause and retry once before giving up, so we neither spin nor
+      // quit on a transient lock.
+      if (prevOldest !== null && s.oldest >= prevOldest) {
+        if (++stalls >= 2) break;
+        await new Promise((r) => setTimeout(r, 1000));
+      } else {
+        stalls = 0;
+      }
+      prevOldest = s.oldest;
+    }
+  } finally {
+    _backfillRun = false;
+    // Refresh the listing once at the end so the new rows show up; the
+    // per-batch updates only touched the bar.
+    if (location.hash.startsWith("#/changes")) route();
+  }
 }
 
 // Background index warming: kept current without the user asking. Fires
@@ -1461,6 +1548,7 @@ registerRoute(/^#\/changes/, async (view, m) => {
   const hasDates = Boolean(dateFrom || dateTo);
   const hasFilters = Boolean(user || path || file || text || hasDates || status !== "submitted");
   const showBar = engine === "index" || engine === "warming";
+  if (idxStatus) _lastIdxStatus = idxStatus;
   view.innerHTML = `
     <div class="pane">
       <button type="button" id="chg-ftoggle" class="filters-toggle">
@@ -1512,23 +1600,7 @@ registerRoute(/^#\/changes/, async (view, m) => {
     else location.hash = target;
   });
 
-  const refreshIndex = async (btn, backfill) => {
-    const label = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = "Working…";
-    try {
-      await api(`/api/index/refresh?backfill=${backfill ? "1" : "0"}`, { method: "POST" });
-      route();
-    } catch (err) {
-      btn.disabled = false;
-      btn.textContent = label;
-      if (err.status !== 401) alert("Index refresh failed: " + err.message);
-    }
-  };
-  const idxR = $("#idx-refresh", view);
-  if (idxR) idxR.addEventListener("click", () => refreshIndex(idxR, false));
-  const idxO = $("#idx-older", view);
-  if (idxO) idxO.addEventListener("click", () => refreshIndex(idxO, true));
+  bindIndexBar(view);
 
   const more = $("#chg-more", view);
   if (more && liveQ) {
