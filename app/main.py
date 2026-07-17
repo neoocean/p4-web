@@ -10,7 +10,12 @@ from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import Cookie, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -1605,9 +1610,36 @@ def unshelve_pending(
     return {"files": files}
 
 
+def _asset_version(name):
+    """A short mtime-based tag so a redeployed asset busts the browser
+    cache. StaticFiles serves etag/last-modified but no Cache-Control,
+    so browsers heuristic-cache app.js and can keep running a stale copy
+    across a deploy; a changing ?v= query forces the refetch."""
+    try:
+        return str(int((STATIC_DIR / name).stat().st_mtime))
+    except OSError:
+        return "0"
+
+
+def _index_html():
+    html = (STATIC_DIR / "index.html").read_text()
+    # Version the app's own JS/CSS (vendored libs are pinned, so leave
+    # them cacheable). Rewrites the exact hrefs in index.html.
+    for asset in ("app.js", "style.css"):
+        html = html.replace(
+            f'"/static/{asset}"', f'"/static/{asset}?v={_asset_version(asset)}"'
+        )
+    return html
+
+
 @app.get("/")
 def index():
-    return FileResponse(STATIC_DIR / "index.html")
+    # no-store on the tiny HTML shell so the versioned asset URLs it
+    # carries are always the current ones; the assets themselves stay
+    # cacheable behind their ?v= tag.
+    return HTMLResponse(
+        _index_html(), headers={"Cache-Control": "no-store, must-revalidate"}
+    )
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
