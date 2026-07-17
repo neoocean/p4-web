@@ -5,6 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="p4-web user guide: log in, browse the depot, read files, blame, diff, search changes, and edit &amp; submit from the browser.">
 <title>Guide — p4-web</title>
+<link rel="alternate" hreflang="en" href="https://p4-web.woojinkim.org/guide.html">
+<link rel="alternate" hreflang="ko" href="https://p4-web.woojinkim.org/ko/guide.html">
+<script>
+(function () {
+  var here = "en";
+  var file = location.pathname.split("/").pop() || "index.html";
+  var pref = null;
+  try { pref = localStorage.getItem("p4webLang"); } catch (e) {}
+  var nav = ((navigator.languages && navigator.languages[0]) || navigator.language || "").toLowerCase();
+  var want = pref || (nav.indexOf("ko") === 0 ? "ko" : "en");
+  if (want !== here) location.replace("./ko/" + file + location.hash);
+  document.addEventListener("DOMContentLoaded", function () {
+    var a = document.getElementById("lang-switch");
+    if (a) a.addEventListener("click", function () {
+      try { localStorage.setItem("p4webLang", a.dataset.lang); } catch (e) {}
+    });
+  });
+})();
+</script>
 <link rel="stylesheet" href="./site.css">
 </head>
 <body>
@@ -16,6 +35,7 @@
       <a href="./changes.html">Changes</a>
       <a href="./guide.html" aria-current="page">Guide</a>
       <a href="https://github.com/neoocean/p4-web">GitHub&nbsp;↗</a>
+      <a href="./ko/guide.html" id="lang-switch" data-lang="ko" lang="ko" hreflang="ko">한국어</a>
     </span>
   </nav>
 

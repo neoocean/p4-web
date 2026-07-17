@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="p4-web 변경 이력: 서브밋된 모든 체인지리스트, 최신순.">
+<title>변경 이력 — p4-web</title>
+<link rel="alternate" hreflang="en" href="https://p4-web.woojinkim.org/changes.html">
+<link rel="alternate" hreflang="ko" href="https://p4-web.woojinkim.org/ko/changes.html">
+<script>
+(function () {
+  var here = "ko";
+  var file = location.pathname.split("/").pop() || "index.html";
+  var pref = null;
+  try { pref = localStorage.getItem("p4webLang"); } catch (e) {}
+  var nav = ((navigator.languages && navigator.languages[0]) || navigator.language || "").toLowerCase();
+  var want = pref || (nav.indexOf("ko") === 0 ? "ko" : "en");
+  if (want !== here) location.replace("../" + file + location.hash);
+  document.addEventListener("DOMContentLoaded", function () {
+    var a = document.getElementById("lang-switch");
+    if (a) a.addEventListener("click", function () {
+      try { localStorage.setItem("p4webLang", a.dataset.lang); } catch (e) {}
+    });
+  });
+})();
+</script>
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<div class="page">
+
+  <nav class="sitenav">
+    <a class="brand" href="./">p4-web</a>
+    <span class="sitenav-links">
+      <a href="./changes.html" aria-current="page">변경 이력</a>
+      <a href="./guide.html">가이드</a>
+      <a href="https://github.com/neoocean/p4-web">GitHub&nbsp;↗</a>
+      <a href="../changes.html" id="lang-switch" data-lang="en" lang="en" hreflang="en">EN</a>
+    </span>
+  </nav>
+
+  <header class="doc-head">
+    <h1>변경 이력</h1>
+    <p class="lede">p4-web은 Perforce로 개발됩니다 — 아래 항목은 모두 실제로
+      서브밋된 체인지리스트이며 최신순입니다. 소스는
+      <a href="https://github.com/neoocean/p4-web">GitHub</a>에 미러링됩니다.</p>
+  </header>
+
+  <section class="cl">
+    <div class="gutter">
+      <div class="clno">2026-07-17</div>
+      <div class="clmeta">2일차</div>
+    </div>
+    <div class="content">
+      <h2>검색 인덱스, 하드닝, 그리고 이 사이트</h2>
+      <ul class="chg-list">
+        <li><span class="chg-cl">65268</span><span class="chg-title">랜딩 페이지: GitHub 저장소와 소스 <code>.zip</code> 다운로드 링크</span></li>
+        <li><span class="chg-cl">65266</span><span class="chg-title">랜딩 페이지: 히어로 디프 오버플로로 인한 모바일 축소 렌더링 수정</span></li>
+        <li><span class="chg-cl">65265</span><span class="chg-title">GitHub Pages 커스텀 도메인 (<code>docs/CNAME</code> → p4-web.woojinkim.org)</span></li>
+        <li><span class="chg-cl">65264</span><span class="chg-title">프로젝트 랜딩 페이지 (<code>docs/index.html</code>)</span></li>
+        <li><span class="chg-cl">65225</span><span class="chg-title">Changes 뷰가 엔진을 자동 선택 — 사용자 노출 “Fast” 토글 제거 <span class="chg-note">(설명/파일명/날짜 탐색은 인덱스, 펜딩·경로 프리픽스는 라이브 p4)</span></span></li>
+        <li><span class="chg-cl">65221</span><span class="chg-title">날짜 필터를 <code>YYYY-MM-DD</code> 텍스트 입력으로 변경 <span class="chg-note">(네이티브 날짜 픽커는 브라우저 로케일 형식으로 렌더링되는 문제)</span></span></li>
+        <li><span class="chg-cl">65220</span><span class="chg-title">사용자별 체인지리스트 검색 인덱스 — 프로텍션을 준수하는 즉시 설명·파일명 검색</span></li>
+        <li><span class="chg-cl">65218</span><span class="chg-title">세션 만료 UX 개선: 재로그인 안내, 사용자명 미리 채움, 위치 보존</span></li>
+        <li><span class="chg-cl">65217</span><span class="chg-title">운영 하드닝: 프록시 헤더 허용 목록 고정, <code>sessions.db</code> 권한을 열 때마다 재조정</span></li>
+        <li><span class="chg-cl">65216</span><span class="chg-title">DoS 하드닝: 스트리밍 raw 다운로드, 제한된 업로드 스풀링, 세션별 API 요청 제한</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="cl">
+    <div class="gutter">
+      <div class="clno">2026-07-16</div>
+      <div class="clmeta">1일차 · 밤</div>
+    </div>
+    <div class="content">
+      <h2>리뷰 기능과 보안 점검</h2>
+      <ul class="chg-list">
+        <li><span class="chg-cl">65207</span><span class="chg-title">상시 보안 리뷰(코드 리뷰 + 감사 + 레드팀)와 심층 방어 수정 3건</span></li>
+        <li><span class="chg-cl">65206</span><span class="chg-title">체인지 상세: 파일 경로 클릭 가능 — 텍스트는 뷰어로, 바이너리는 다운로드로</span></li>
+        <li><span class="chg-cl">65196</span><span class="chg-title">인라인 코멘트: 파일/줄·체인지리스트 스레드, 마크다운 본문, 해결/수정/삭제</span></li>
+        <li><span class="chg-cl">65193</span><span class="chg-title">경로 즐겨찾기와 루트 대시보드 <span class="chg-note">(즐겨찾기별 최근 변경 표시)</span></span></li>
+        <li><span class="chg-cl">65192</span><span class="chg-title">마크다운 렌더링: 탐색 화면 README 패널, Rendered/Source 토글 <span class="chg-note">(marked + DOMPurify, 번들 포함)</span></span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="cl">
+    <div class="gutter">
+      <div class="clno">2026-07-16</div>
+      <div class="clmeta">1일차 · 저녁</div>
+    </div>
+    <div class="content">
+      <h2>쓰기 작업</h2>
+      <ul class="chg-list">
+        <li><span class="chg-cl">65184</span><span class="chg-title">다크 모드(시스템 기본 + 수동 토글)와 문서 마무리</span></li>
+        <li><span class="chg-cl">65182</span><span class="chg-title">디포 목록 정렬; 줄 번호 퍼머링크</span></li>
+        <li><span class="chg-cl">65181</span><span class="chg-title">My Changes에서 셸브 / 언셸브 / 셸프 삭제</span></li>
+        <li><span class="chg-cl">65178</span><span class="chg-title">쓰기 UI: My Changes 페이지, 웹 에디터, 업로드, 서브밋 확인</span></li>
+        <li><span class="chg-cl">65175</span><span class="chg-title">쓰기 백엔드: 사용자별 서버 측 워크스페이스, 자기 체인지리스트 한정 가드, 감사 로그</span></li>
+        <li><span class="chg-cl">65170</span><span class="chg-title">로그인 요청 제한(계정·IP별)과 Secure 쿠키</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="cl">
+    <div class="gutter">
+      <div class="clno">2026-07-16</div>
+      <div class="clmeta">1일차 · 오후</div>
+    </div>
+    <div class="content">
+      <h2>P4V 패리티와 운영</h2>
+      <ul class="chg-list">
+        <li><span class="chg-cl">65168</span><span class="chg-title">모바일 UX 정비: 행 전체 탭 타깃, 슬라이드 오버 트리, 반응형 테이블</span></li>
+        <li><span class="chg-cl">65165</span><span class="chg-title">배포: Dockerfile + compose, launchd·systemd 유닛, SSL 최초 접속 신뢰</span></li>
+        <li><span class="chg-cl">65162</span><span class="chg-title">체인지리스트 필터에 사용자 자동완성</span></li>
+        <li><span class="chg-cl">65161</span><span class="chg-title">통합 이력을 담은 SVG 리비전 그래프 탭</span></li>
+        <li><span class="chg-cl">65157</span><span class="chg-title">흔한 p4 오류를 친절한 메시지로 번역</span></li>
+        <li><span class="chg-cl">65155</span><span class="chg-title">세션을 SQLite에 보존 — 재시작해도 로그아웃되지 않음</span></li>
+        <li><span class="chg-cl">65153</span><span class="chg-title">모바일 레이아웃 기반 작업</span></li>
+        <li><span class="chg-cl">65151</span><span class="chg-title">디포 트리 사이드바: 지연 로딩, 딥링크와 동기화</span></li>
+        <li><span class="chg-cl">65149</span><span class="chg-title">메타데이터 브라우저: 레이블, 잡(픽스 포함), 브랜치, 스트림, 사용자 &amp; 그룹</span></li>
+        <li><span class="chg-cl">65148</span><span class="chg-title">raw 보기/다운로드와 인라인 이미지 미리보기 <span class="chg-note">(CSP 샌드박스)</span></span></li>
+        <li><span class="chg-cl">65147</span><span class="chg-title">디프 스위트: 어디서나 side-by-side, 리비전 쌍, 폴더 디프, 타임랩스 어노테이트</span></li>
+        <li><span class="chg-cl">65145</span><span class="chg-title">디포 검색: 디포 전역 파일명, <code>p4 grep</code> 기반 내용 검색</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="cl">
+    <div class="gutter">
+      <div class="clno">2026-07-16</div>
+      <div class="clmeta">1일차 · 오전</div>
+    </div>
+    <div class="content">
+      <h2>읽기 전용 코어</h2>
+      <ul class="chg-list">
+        <li><span class="chg-cl">65139</span><span class="chg-title">README, <code>/api/info</code>, 로그인 화면 다듬기</span></li>
+        <li><span class="chg-cl">65138</span><span class="chg-title">체인지리스트 탐색: 필터, 키셋 페이징, 파일별 디프가 있는 상세 뷰</span></li>
+        <li><span class="chg-cl">65137</span><span class="chg-title">파일 히스토리(이름 변경 포함), unified 디프, 어노테이트</span></li>
+        <li><span class="chg-cl">65135</span><span class="chg-title">디포 브라우저와 오프라인 신택스 하이라이팅 파일 뷰어</span></li>
+        <li><span class="chg-cl">65134</span><span class="chg-title">프로젝트 뼈대: FastAPI 앱, <code>p4 -G</code> 래퍼, 티켓 기반 로그인</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <span><a href="./">p4-web</a> — 열린 곳에서, 번호 있는 체인지리스트로 하나씩.</span>
+    <span><a href="https://github.com/neoocean/p4-web">GitHub</a> · <a href="./guide.html">가이드</a> · 2026</span>
+  </footer>
+
+</div>
+</body>
+</html>

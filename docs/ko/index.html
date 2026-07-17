@@ -1,21 +1,21 @@
 <!doctype html>
-<html lang="en">
+<html lang="ko">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="p4-web: a lightweight read+write web UI for Perforce - a P4V / Swarm alternative for individuals and small teams.">
-<title>p4-web — the whole depot in a browser tab</title>
+<meta name="description" content="p4-web: Perforce를 위한 가벼운 읽기+쓰기 웹 UI - 개인과 소규모 팀을 위한 P4V / Swarm 대안.">
+<title>p4-web — 디포 전체를 브라우저 탭 하나에</title>
 <link rel="alternate" hreflang="en" href="https://p4-web.woojinkim.org/index.html">
 <link rel="alternate" hreflang="ko" href="https://p4-web.woojinkim.org/ko/index.html">
 <script>
 (function () {
-  var here = "en";
+  var here = "ko";
   var file = location.pathname.split("/").pop() || "index.html";
   var pref = null;
   try { pref = localStorage.getItem("p4webLang"); } catch (e) {}
   var nav = ((navigator.languages && navigator.languages[0]) || navigator.language || "").toLowerCase();
   var want = pref || (nav.indexOf("ko") === 0 ? "ko" : "en");
-  if (want !== here) location.replace("./ko/" + file + location.hash);
+  if (want !== here) location.replace("../" + file + location.hash);
   document.addEventListener("DOMContentLoaded", function () {
     var a = document.getElementById("lang-switch");
     if (a) a.addEventListener("click", function () {
@@ -472,16 +472,15 @@
 </style>
 </head>
 <body>
-
 <div class="page">
 
   <nav class="sitenav">
     <a class="brand" href="./">p4-web</a>
     <span class="sitenav-links">
-      <a href="./changes.html">Changes</a>
-      <a href="./guide.html">Guide</a>
+      <a href="./changes.html">변경 이력</a>
+      <a href="./guide.html">가이드</a>
       <a href="https://github.com/neoocean/p4-web">GitHub&nbsp;↗</a>
-      <a href="./ko/index.html" id="lang-switch" data-lang="ko" lang="ko" hreflang="ko">한국어</a>
+      <a href="../index.html" id="lang-switch" data-lang="en" lang="en" hreflang="en">EN</a>
     </span>
   </nav>
 
@@ -490,33 +489,33 @@
       1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9<br>10<br>11<br>12<br>13<br>14
     </div>
     <div>
-      <p class="eyebrow">//depot/… — read + write</p>
-      <h1>The whole depot,<br>in a browser tab.<span class="cursor"></span></h1>
+      <p class="eyebrow">//depot/… — 읽기 + 쓰기</p>
+      <h1>디포 전체를,<br>브라우저 탭 하나에.<span class="cursor"></span></h1>
       <p class="lede">
-        <strong>p4-web</strong> is a lightweight web UI for Perforce — a P4V / Swarm
-        alternative sized for individuals and small teams. Browse, blame, diff,
-        search, review, and even <strong>edit &amp; submit</strong>, from one FastAPI
-        process that shells out to the <code>p4</code> CLI. No database server,
-        no build step, no framework.
+        <strong>p4-web</strong>은 Perforce를 위한 가벼운 웹 UI입니다 — 개인과
+        소규모 팀 크기에 맞춘 P4V / Swarm 대안. 탐색, 블레임, 디프, 검색,
+        리뷰에 <strong>편집 &amp; 서브밋</strong>까지, <code>p4</code> CLI를
+        호출하는 FastAPI 프로세스 하나로 모두 처리합니다. 데이터베이스 서버
+        없음, 빌드 단계 없음, 프레임워크 없음.
       </p>
       <div class="cta-row">
         <a class="btn btn-primary" href="#quickstart">$ ./run.sh</a>
         <a class="btn btn-ghost" href="https://github.com/neoocean/p4-web">GitHub&nbsp;↗</a>
-        <a class="btn btn-ghost" href="#security">Security notes</a>
+        <a class="btn btn-ghost" href="#security">보안 노트</a>
       </div>
 
-      <div class="diff-panel" aria-label="Diff of your Perforce workflow, before and after p4-web">
+      <div class="diff-panel" aria-label="p4-web 도입 전후의 Perforce 워크플로 디프">
         <div class="diff-title">
           <span class="dots"><span></span><span></span><span></span></span>
           p4 diff2 //you/workflow#before //you/workflow#after
         </div>
         <div class="diff-body">
-          <div class="row hunk"><span class="ln">·</span><span class="sign"></span><span>@@ your daily Perforce workflow @@</span></div>
-          <div class="row del"><span class="ln">1</span><span class="sign">-</span><span>install P4V on every machine you might read code from</span></div>
-          <div class="row del"><span class="ln">2</span><span class="sign">-</span><span>stand up Swarm just to link a changelist in chat</span></div>
-          <div class="row add"><span class="ln">1</span><span class="sign">+</span><span>./run.sh                      # one process, ~zero setup</span></div>
-          <div class="row add"><span class="ln">2</span><span class="sign">+</span><span>open http://127.0.0.1:8080    # log in with your p4 account</span></div>
-          <div class="row ctx"><span class="ln">3</span><span class="sign">&nbsp;</span><span>protections still apply — every call runs as you</span></div>
+          <div class="row hunk"><span class="ln">·</span><span class="sign"></span><span>@@ 당신의 Perforce 워크플로 @@</span></div>
+          <div class="row del"><span class="ln">1</span><span class="sign">-</span><span>코드를 읽을 일이 있는 모든 머신에 P4V 설치</span></div>
+          <div class="row del"><span class="ln">2</span><span class="sign">-</span><span>채팅에 체인지리스트 링크 하나 걸자고 Swarm 구축</span></div>
+          <div class="row add"><span class="ln">1</span><span class="sign">+</span><span>./run.sh                      # 프로세스 하나, 설정은 거의 없음</span></div>
+          <div class="row add"><span class="ln">2</span><span class="sign">+</span><span>open http://127.0.0.1:8080    # p4 계정으로 로그인</span></div>
+          <div class="row ctx"><span class="ln">3</span><span class="sign">&nbsp;</span><span>프로텍션은 그대로 — 모든 호출은 당신의 권한으로 실행</span></div>
         </div>
       </div>
     </div>
@@ -525,22 +524,22 @@
   <section class="cl" id="read">
     <div class="gutter">
       <div class="clno">CL 65134</div>
-      <div class="clmeta">read-only core</div>
+      <div class="clmeta">읽기 전용 코어</div>
     </div>
     <div class="content">
-      <h2>Everything you open P4V for</h2>
-      <p class="kicker">Each card is backed by the real <code>p4</code> command underneath —
-        the app is a thin, honest wrapper, so results match your CLI exactly.</p>
+      <h2>P4V 열 일, 전부 브라우저에서</h2>
+      <p class="kicker">카드마다 실제로 실행되는 <code>p4</code> 명령이 붙어 있습니다 —
+        앱은 얇고 정직한 래퍼라서 결과가 CLI와 정확히 일치합니다.</p>
       <div class="grid">
-        <div class="card"><span class="cmd">p4 dirs</span><h3>Depot browser</h3><p>Breadcrumbs, sortable listings, and a P4V-style lazy tree sidebar synced to deep links.</p></div>
-        <div class="card"><span class="cmd">p4 print</span><h3>File viewer</h3><p>Syntax highlighting (vendored, offline), line-number gutter, revision dropdown, line permalinks.</p></div>
-        <div class="card"><span class="cmd">p4 filelog</span><h3>History &amp; graph</h3><p>Full history across renames and branches, plus an SVG revision graph with integration provenance.</p></div>
-        <div class="card"><span class="cmd">p4 diff2</span><h3>Diff tools</h3><p>Unified and side-by-side everywhere: arbitrary revision pairs, folder diffs, shelved-vs-base.</p></div>
-        <div class="card"><span class="cmd">p4 annotate</span><h3>Time-lapse blame</h3><p>Per-line changelist + author gutter, with a slider that re-blames the file at any point in history.</p></div>
-        <div class="card"><span class="cmd">p4 changes</span><h3>Changelists</h3><p>Filter by user, path, text, or date — an incremental local index makes description and filename search fast.</p></div>
-        <div class="card"><span class="cmd">p4 grep</span><h3>Search</h3><p>File-name search across depots and content search within a scope; matches jump to the highlighted line.</p></div>
-        <div class="card"><span class="cmd">p4 labels …</span><h3>Metadata browsers</h3><p>Labels, jobs with fixes, branch mappings, streams, users &amp; groups — all under one “More” menu.</p></div>
-        <div class="card"><span class="cmd">app-side</span><h3>Review touches</h3><p>Rendered markdown with README panels, inline file/line comments with threads, image previews, raw download.</p></div>
+        <div class="card"><span class="cmd">p4 dirs</span><h3>디포 브라우저</h3><p>브레드크럼, 정렬 가능한 목록, 딥링크와 동기화되는 P4V 스타일 지연 로딩 트리 사이드바.</p></div>
+        <div class="card"><span class="cmd">p4 print</span><h3>파일 뷰어</h3><p>신택스 하이라이팅(번들 포함, 오프라인 동작), 줄 번호 거터, 리비전 드롭다운, 줄 퍼머링크.</p></div>
+        <div class="card"><span class="cmd">p4 filelog</span><h3>히스토리 &amp; 그래프</h3><p>이름 변경·브랜치를 아우르는 전체 히스토리, 통합 이력을 담은 SVG 리비전 그래프.</p></div>
+        <div class="card"><span class="cmd">p4 diff2</span><h3>디프 도구</h3><p>어디서나 unified / side-by-side: 임의 리비전 쌍, 폴더 디프, 셸브-대-베이스 비교.</p></div>
+        <div class="card"><span class="cmd">p4 annotate</span><h3>타임랩스 블레임</h3><p>줄별 체인지리스트 + 작성자 거터, 히스토리의 어느 시점으로든 되감아 다시 블레임하는 슬라이더.</p></div>
+        <div class="card"><span class="cmd">p4 changes</span><h3>체인지리스트</h3><p>사용자·경로·텍스트·날짜 필터 — 증분 로컬 인덱스 덕에 설명·파일명 검색이 빠릅니다.</p></div>
+        <div class="card"><span class="cmd">p4 grep</span><h3>검색</h3><p>디포 전역 파일명 검색과 범위 내 내용 검색; 결과를 클릭하면 하이라이트된 줄로 이동합니다.</p></div>
+        <div class="card"><span class="cmd">p4 labels …</span><h3>메타데이터 브라우저</h3><p>레이블, 잡(픽스 포함), 브랜치 매핑, 스트림, 사용자 &amp; 그룹 — “More” 메뉴 하나에.</p></div>
+        <div class="card"><span class="cmd">app-side</span><h3>리뷰 기능</h3><p>README 패널이 있는 마크다운 렌더링, 스레드형 파일/줄 인라인 코멘트, 이미지 미리보기, raw 다운로드.</p></div>
       </div>
     </div>
   </section>
@@ -548,29 +547,29 @@
   <section class="cl" id="write">
     <div class="gutter">
       <div class="clno">CL 65170</div>
-      <div class="clmeta">write ops</div>
+      <div class="clmeta">쓰기 작업</div>
     </div>
     <div class="content">
-      <h2>My Changes: edit and submit from the browser</h2>
-      <p class="kicker">Each user gets a server-side workspace (<code>p4web-&lt;user&gt;</code>) with
-        sparse sync — files appear only while you work on them.</p>
+      <h2>My Changes: 브라우저에서 편집하고 서브밋</h2>
+      <p class="kicker">사용자마다 서버 측 워크스페이스(<code>p4web-&lt;user&gt;</code>)가
+        스파스 싱크로 만들어집니다 — 파일은 작업하는 동안에만 나타납니다.</p>
       <div class="split">
         <div class="pane">
-          <h3>What you can do</h3>
+          <h3>할 수 있는 일</h3>
           <ul class="checks">
-            <li>Create pending changelists and edit text files in a web editor</li>
-            <li>Upload new or replacement files, binary-safe</li>
-            <li>Mark for delete, revert, shelve / unshelve</li>
-            <li>Submit behind a confirmation dialog showing the full file list</li>
+            <li>펜딩 체인지리스트를 만들고 웹 에디터에서 텍스트 파일 편집</li>
+            <li>새 파일·교체 파일 업로드, 바이너리 안전</li>
+            <li>삭제 마크, 리버트, 셸브 / 언셸브</li>
+            <li>전체 파일 목록을 보여주는 확인 대화상자를 거쳐 서브밋</li>
           </ul>
         </div>
         <div class="pane">
-          <h3>Guardrails</h3>
+          <h3>가드레일</h3>
           <ul class="locks">
-            <li>You can only touch your own p4-web pending changelists</li>
-            <li>Every write is recorded in <code>data/audit.log</code></li>
-            <li>Login throttling per account and per IP; API rate limits per session</li>
-            <li>Perforce protections apply — the server never escalates</li>
+            <li>자신의 p4-web 펜딩 체인지리스트만 조작할 수 있습니다</li>
+            <li>모든 쓰기는 <code>data/audit.log</code>에 기록됩니다</li>
+            <li>계정·IP별 로그인 스로틀링, 세션별 API 요청 제한</li>
+            <li>Perforce 프로텍션 그대로 — 서버가 권한을 올려주지 않습니다</li>
           </ul>
         </div>
       </div>
@@ -583,35 +582,35 @@
       <div class="clmeta">run.sh</div>
     </div>
     <div class="content">
-      <h2>Running in under a minute</h2>
-      <p class="kicker">One script creates the venv, installs two dependencies, and serves.</p>
+      <h2>1분 안에 실행</h2>
+      <p class="kicker">스크립트 하나가 venv를 만들고 의존성 두 개를 설치한 뒤 서빙합니다.</p>
       <pre class="term"><span class="p">$</span> git clone https://github.com/neoocean/p4-web.git &amp;&amp; cd p4-web
 <span class="p">$</span> ./run.sh
-<span class="c"># equivalent to:</span>
+<span class="c"># 다음과 동일:</span>
 <span class="p">$</span> python3 -m venv .venv
 <span class="p">$</span> .venv/bin/pip install -r requirements.txt
 <span class="p">$</span> .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8080
-<span class="c"># then open http://127.0.0.1:8080 and log in with a Perforce account</span></pre>
-      <p class="reqline">requires: Python 3.10+ · the <code>p4</code> CLI on PATH · network access to your Perforce server</p>
-      <p class="reqline">no git handy? <a href="https://github.com/neoocean/p4-web/archive/refs/heads/main.zip">download the source as a .zip</a></p>
+<span class="c"># 이후 http://127.0.0.1:8080 을 열고 Perforce 계정으로 로그인</span></pre>
+      <p class="reqline">필요: Python 3.10+ · PATH에 있는 <code>p4</code> CLI · Perforce 서버 네트워크 접근</p>
+      <p class="reqline">git이 없다면? <a href="https://github.com/neoocean/p4-web/archive/refs/heads/main.zip">소스를 .zip으로 다운로드</a></p>
     </div>
   </section>
 
   <section class="cl" id="security">
     <div class="gutter">
       <div class="clno">CL 65207</div>
-      <div class="clmeta">sec review</div>
+      <div class="clmeta">보안 리뷰</div>
     </div>
     <div class="content">
-      <h2>Security, the boring way</h2>
-      <p class="kicker">Reviewed end-to-end (code review, security audit, red team) with the
-        write-up in the repo. The core boundaries:</p>
+      <h2>보안은, 지루한 방식으로</h2>
+      <p class="kicker">코드 리뷰·보안 감사·레드팀까지 끝에서 끝까지 검토했고,
+        결과 문서는 저장소에 있습니다. 핵심 경계는:</p>
       <ul class="sec-list">
-        <li><strong>Your ticket, your permissions.</strong> Every API call runs <code>p4</code> with the session’s own user and ticket — Perforce protections apply exactly as in P4V.</li>
-        <li><strong>No ticket leakage.</strong> <code>P4TICKETS</code> points at <code>/dev/null</code> for every subprocess; the server’s own tickets file can never authenticate a web user.</li>
-        <li><strong>Passwords are never stored.</strong> Credentials are exchanged for a <code>p4 login</code> ticket; you can paste a ticket instead, Swarm-style.</li>
-        <li><strong>Command allowlist.</strong> The p4 wrapper only permits known commands; write operations are confined to your own p4-web changelists and audited.</li>
-        <li><strong>Hardened endpoints.</strong> Streamed raw downloads and bounded upload spooling (no 100&nbsp;MB buffers), per-session rate limits, secure cookies, login throttling.</li>
+        <li><strong>당신의 티켓, 당신의 권한.</strong> 모든 API 호출은 세션 사용자의 티켓으로 <code>p4</code>를 실행합니다 — Perforce 프로텍션이 P4V에서와 똑같이 적용됩니다.</li>
+        <li><strong>티켓 유출 없음.</strong> 모든 서브프로세스의 <code>P4TICKETS</code>는 <code>/dev/null</code>을 가리킵니다 — 서버를 구동하는 OS 사용자의 티켓 파일로는 절대 인증되지 않습니다.</li>
+        <li><strong>비밀번호는 저장하지 않습니다.</strong> 자격 증명은 <code>p4 login</code> 티켓으로 교환되며, Swarm처럼 티켓 값을 직접 붙여넣을 수도 있습니다.</li>
+        <li><strong>명령 허용 목록.</strong> p4 래퍼는 알려진 명령만 허용합니다; 쓰기 작업은 자신의 p4-web 체인지리스트로 한정되고 감사 기록이 남습니다.</li>
+        <li><strong>강화된 엔드포인트.</strong> 스트리밍 raw 다운로드와 제한된 업로드 스풀링(100&nbsp;MB 버퍼 없음), 세션별 요청 제한, Secure 쿠키, 로그인 스로틀링.</li>
       </ul>
     </div>
   </section>
@@ -619,17 +618,17 @@
   <section class="cl" id="deploy">
     <div class="gutter">
       <div class="clno">CL 65160</div>
-      <div class="clmeta">deploy</div>
+      <div class="clmeta">배포</div>
     </div>
     <div class="content">
-      <h2>Deploy anywhere a shell runs</h2>
-      <p class="kicker">Sessions persist in SQLite (<code>data/sessions.db</code>), so restarts
-        don’t log anyone out. For <code>ssl:</code> servers, <code>P4WEB_AUTO_TRUST=1</code> accepts
-        the fingerprint on first connect.</p>
+      <h2>셸이 있는 곳이면 어디든 배포</h2>
+      <p class="kicker">세션은 SQLite(<code>data/sessions.db</code>)에 보존되어
+        재시작해도 로그아웃되지 않습니다. <code>ssl:</code> 서버는
+        <code>P4WEB_AUTO_TRUST=1</code>로 첫 접속 시 지문을 수락합니다.</p>
       <div class="deploy">
-        <div class="card"><h3>Docker</h3><p>The image bundles the p4 CLI; sessions and SSL trust live on the <code>/data</code> volume.</p><code class="one">docker compose up -d</code></div>
-        <div class="card"><h3>macOS · launchd</h3><p>Always-on local service via a LaunchAgent plist — pairs well with a tailnet.</p><code class="one">launchctl load com.p4web.plist</code></div>
-        <div class="card"><h3>Linux · systemd</h3><p>A standard unit file; edit paths, enable, done.</p><code class="one">systemctl enable --now p4web</code></div>
+        <div class="card"><h3>Docker</h3><p>이미지에 p4 CLI가 포함되어 있고, 세션과 SSL 신뢰 파일은 <code>/data</code> 볼륨에 저장됩니다.</p><code class="one">docker compose up -d</code></div>
+        <div class="card"><h3>macOS · launchd</h3><p>LaunchAgent plist로 상시 구동되는 로컬 서비스 — 테일넷과 궁합이 좋습니다.</p><code class="one">launchctl load com.p4web.plist</code></div>
+        <div class="card"><h3>Linux · systemd</h3><p>표준 유닛 파일; 경로를 수정하고 enable 하면 끝입니다.</p><code class="one">systemctl enable --now p4web</code></div>
       </div>
     </div>
   </section>
@@ -640,27 +639,27 @@
       <div class="clmeta">handoff</div>
     </div>
     <div class="content">
-      <h2>Small enough to read</h2>
+      <h2>읽을 수 있을 만큼 작게</h2>
       <pre class="term">app/
-  main.py      FastAPI routes: auth, browse, file, diff, annotate,
-               changes, comments, workspace write ops
-  p4.py        p4 CLI wrapper: -G marshal parsing, path escaping,
-               command allowlist, error → HTTP mapping
-  sessions.py  cookie sid → {user, ticket}, SQLite-backed
-  index.py     per-user changelist search index (respects protections)
+  main.py      FastAPI 라우트: 인증, 탐색, 파일, 디프, 어노테이트,
+               체인지, 코멘트, 워크스페이스 쓰기 작업
+  p4.py        p4 CLI 래퍼: -G 마샬 파싱, 경로 이스케이프,
+               명령 허용 목록, 오류 → HTTP 매핑
+  sessions.py  쿠키 sid → {user, ticket}, SQLite 저장
+  index.py     사용자별 체인지리스트 검색 인덱스(프로텍션 준수)
 static/
-  index.html   login screen + app shell
-  app.js       hash-routed SPA — no framework, no build
-  style.css    light + dark, responsive below 768px
-  vendor/      highlight.js, marked, DOMPurify (offline)</pre>
-      <p class="arch-note">The entire stack is one Python process and a directory of static
-        files. If something breaks, the code that broke is short enough to read over coffee —
-        and every feature maps to a p4 command you already know.</p>
+  index.html   로그인 화면 + 앱 셸
+  app.js       해시 라우팅 SPA — 프레임워크 없음, 빌드 없음
+  style.css    라이트 + 다크, 768px 미만 반응형
+  vendor/      highlight.js, marked, DOMPurify (오프라인)</pre>
+      <p class="arch-note">스택 전체가 파이썬 프로세스 하나와 정적 파일 디렉터리입니다.
+        뭔가 고장 나면, 고장 난 코드는 커피 한 잔 하는 동안 읽을 수 있을 만큼 짧습니다 —
+        그리고 모든 기능은 이미 알고 있는 p4 명령에 대응합니다.</p>
     </div>
   </section>
 
   <footer>
-    <span>p4-web — built in the open, one numbered changelist at a time.</span>
+    <span>p4-web — 열린 곳에서, 번호 있는 체인지리스트로 하나씩.</span>
     <span><a href="https://github.com/neoocean/p4-web">GitHub</a> · <a href="https://github.com/neoocean/p4-web/archive/refs/heads/main.zip">source .zip</a> · CL 65134 → 65266 · 2026</span>
   </footer>
 

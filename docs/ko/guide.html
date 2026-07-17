@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="p4-web 사용 가이드: 로그인, 디포 탐색, 파일 읽기, 블레임, 디프, 체인지 검색, 브라우저에서 편집·서브밋까지.">
+<title>가이드 — p4-web</title>
+<link rel="alternate" hreflang="en" href="https://p4-web.woojinkim.org/guide.html">
+<link rel="alternate" hreflang="ko" href="https://p4-web.woojinkim.org/ko/guide.html">
+<script>
+(function () {
+  var here = "ko";
+  var file = location.pathname.split("/").pop() || "index.html";
+  var pref = null;
+  try { pref = localStorage.getItem("p4webLang"); } catch (e) {}
+  var nav = ((navigator.languages && navigator.languages[0]) || navigator.language || "").toLowerCase();
+  var want = pref || (nav.indexOf("ko") === 0 ? "ko" : "en");
+  if (want !== here) location.replace("../" + file + location.hash);
+  document.addEventListener("DOMContentLoaded", function () {
+    var a = document.getElementById("lang-switch");
+    if (a) a.addEventListener("click", function () {
+      try { localStorage.setItem("p4webLang", a.dataset.lang); } catch (e) {}
+    });
+  });
+})();
+</script>
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<div class="page">
+
+  <nav class="sitenav">
+    <a class="brand" href="./">p4-web</a>
+    <span class="sitenav-links">
+      <a href="./changes.html">변경 이력</a>
+      <a href="./guide.html" aria-current="page">가이드</a>
+      <a href="https://github.com/neoocean/p4-web">GitHub&nbsp;↗</a>
+      <a href="../guide.html" id="lang-switch" data-lang="en" lang="en" hreflang="en">EN</a>
+    </span>
+  </nav>
+
+  <header class="doc-head">
+    <h1>가이드</h1>
+    <p class="lede">로그인부터 서브밋까지, p4-web 한 바퀴 둘러보기. 아직 설치
+      전이라면 <a href="./#quickstart">퀵스타트</a>로 1분 안에 서버를 띄울 수
+      있습니다.</p>
+    <p class="demo-note">모든 스크린샷은 가상의 데모 디포(<code>//rocket</code>)와
+      가상 사용자·체인지리스트로 만든 것입니다 — 실제 인스턴스에서는 당신의
+      서버 데이터가 Perforce 프로텍션에 따라 필터링되어 보입니다.</p>
+  </header>
+
+  <section class="cl" id="login">
+    <div class="gutter">
+      <div class="clno">p4 login</div>
+      <div class="clmeta">1단계</div>
+    </div>
+    <div class="content">
+      <h2>Perforce 계정으로 로그인</h2>
+      <p class="kicker">자격 증명은 <code>p4 login</code> 티켓으로 교환되고 —
+        비밀번호 자체는 저장되지 않습니다. 장기 티켓을 쓰는 사이트라면 비밀번호
+        자리에 티켓 값을 붙여넣을 수 있습니다(Swarm 방식). 로고 아래 표시되는
+        서버 주소가 이 인스턴스의 <code>P4PORT</code>입니다.</p>
+      <figure class="shot">
+        <img src="../assets/guide-login.png" alt="사용자와 비밀번호 필드가 있는 p4-web 로그인 화면" width="1180" height="780" loading="lazy">
+        <figcaption>로그인 — 사용자 + 비밀번호, 또는 사용자 + 티켓 붙여넣기</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="cl" id="browse">
+    <div class="gutter">
+      <div class="clno">p4 dirs</div>
+      <div class="clmeta">2단계</div>
+    </div>
+    <div class="content">
+      <h2>디포 탐색</h2>
+      <p class="kicker">왼쪽의 접이식 트리는 딥링크와 동기화됩니다(P4V 스타일).
+        목록에는 리비전·체인지리스트·타입·수정 시각이 보이고, 열 머리글을
+        클릭하면 정렬됩니다. ☆ 버튼은 현재 경로를 즐겨찾기로 저장하며,
+        즐겨찾기는 루트 페이지에서 대시보드가 됩니다. README가 있는 디렉터리는
+        목록 아래에 README를 렌더링합니다.</p>
+      <figure class="shot">
+        <img src="../assets/guide-browse.png" alt="트리 사이드바, 브레드크럼, 정렬 가능한 파일 목록이 있는 디포 브라우저" width="1180" height="780" loading="lazy">
+        <figcaption>디포 브라우저 — 트리, 브레드크럼, 정렬 가능한 목록</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="cl" id="read">
+    <div class="gutter">
+      <div class="clno">p4 print</div>
+      <div class="clmeta">3단계</div>
+    </div>
+    <div class="content">
+      <h2>파일 읽기</h2>
+      <p class="kicker">신택스 하이라이팅은 오프라인에서도 동작합니다(highlight.js
+        번들 포함). 리비전 드롭다운으로 어느 리비전에서든 파일을 다시 렌더링하고,
+        Raw와 Download는 정확한 바이트를 제공합니다. 줄 번호를 클릭하면
+        퍼머링크를 복사하거나 인라인 코멘트 스레드를 시작할 수 있습니다.
+        마크다운 파일에는 Rendered/Source 토글이 붙습니다.</p>
+      <figure class="shot">
+        <img src="../assets/guide-file.png" alt="줄 번호, 리비전 드롭다운, 코멘트 입력창이 있는 신택스 하이라이팅된 파이썬 파일 뷰어" width="1180" height="780" loading="lazy">
+        <figcaption>파일 뷰어 — Content · History · Annotate · Graph 탭</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="cl" id="annotate">
+    <div class="gutter">
+      <div class="clno">p4 annotate</div>
+      <div class="clmeta">4단계</div>
+    </div>
+    <div class="content">
+      <h2>블레임, 타임머신을 곁들여</h2>
+      <p class="kicker">Annotate 탭은 각 줄을 마지막으로 수정한 체인지리스트와
+        작성자를 보여줍니다 — 클릭하면 해당 체인지 전체로 이동합니다. 헤더의
+        슬라이더는 타임랩스입니다: 드래그하면 과거 어느 리비전 시점의 파일로든
+        되감아 다시 블레임합니다.</p>
+      <figure class="shot">
+        <img src="../assets/guide-annotate.png" alt="줄별 체인지리스트·작성자 거터와 리비전 타임랩스 슬라이더가 있는 어노테이트 뷰" width="1180" height="780" loading="lazy">
+        <figcaption>어노테이트 — 줄별 체인지 + 작성자, 타임랩스 슬라이더</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="cl" id="diff">
+    <div class="gutter">
+      <div class="clno">p4 diff2</div>
+      <div class="clmeta">5단계</div>
+    </div>
+    <div class="content">
+      <h2>리비전 비교</h2>
+      <p class="kicker">디프가 나오는 모든 곳에서 unified와 side-by-side를
+        지원하며, 토글은 선호를 기억합니다. History 탭에서 임의의 리비전 쌍을
+        고르거나, Folder diff로 디렉터리 트리 전체를 비교할 수 있습니다
+        (@change나 @date로 고정 가능).</p>
+      <figure class="shot">
+        <img src="../assets/guide-diff.png" alt="추가·삭제 줄이 하이라이트된 두 리비전의 side-by-side 디프" width="1180" height="780" loading="lazy">
+        <figcaption>디프 — side-by-side, 임의 리비전 쌍</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="cl" id="changes">
+    <div class="gutter">
+      <div class="clno">p4 changes</div>
+      <div class="clmeta">6단계</div>
+    </div>
+    <div class="content">
+      <h2>체인지 찾기</h2>
+      <p class="kicker">서브밋/펜딩 체인지리스트를 사용자·경로·파일명·설명 텍스트·
+        날짜 범위로 필터링합니다. 설명·파일명 검색은 사용자별 로컬 인덱스(⚡ 바)를
+        사용하는데, 프로텍션을 준수하며 증분 갱신됩니다 — 수천 개 체인지에 대한
+        검색도 즉시 돌아옵니다.</p>
+      <figure class="shot">
+        <img src="../assets/guide-changes.png" alt="필터 바, 인덱스 상태 바, 체인지리스트 목록이 있는 Changes 뷰" width="1180" height="780" loading="lazy">
+        <figcaption>Changes — 필터 + 인덱스 기반 설명/파일명 검색</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="cl" id="write">
+    <div class="gutter">
+      <div class="clno">p4 submit</div>
+      <div class="clmeta">7단계</div>
+    </div>
+    <div class="content">
+      <h2>편집과 서브밋</h2>
+      <p class="kicker">My Changes는 개인 펜딩 체인지리스트 페이지로, 필요할 때
+        만들어지는 서버 측 워크스페이스가 뒤를 받칩니다. 어느 파일 페이지에서든
+        Edit나 Delete로 파일을 체인지리스트에 열 수 있고, 이곳에서는:</p>
+      <ul class="steps">
+        <li>웹 에디터로 텍스트 파일을 편집하거나, 새 파일/교체 파일 업로드(바이너리 안전)</li>
+        <li>셸브와 언셸브, 또는 셸프 삭제</li>
+        <li>파일 하나 또는 체인지리스트 전체 리버트</li>
+        <li>서브밋 — 무엇이 반영되는지 정확히 나열하는 확인 대화상자를 거쳐</li>
+      </ul>
+      <p class="kicker" style="margin-top:14px">자신의 p4-web 체인지리스트만
+        조작할 수 있고, 모든 쓰기는 감사 로그에 기록됩니다.</p>
+      <figure class="shot">
+        <img src="../assets/guide-my.png" alt="설명 편집기, 액션이 있는 파일 목록, 서브밋·셸브 버튼이 있는 My Changes 상세 페이지" width="1180" height="780" loading="lazy">
+        <figcaption>My Changes — 웹 에디터, 업로드, 셸브, 서브밋</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <footer>
+    <span><a href="./">p4-web</a> — 디포 전체를, 브라우저 탭 하나에.</span>
+    <span><a href="https://github.com/neoocean/p4-web">GitHub</a> · <a href="./changes.html">변경 이력</a> · 2026</span>
+  </footer>
+
+</div>
+</body>
+</html>
