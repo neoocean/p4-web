@@ -457,6 +457,7 @@
       </p>
       <div class="cta-row">
         <a class="btn btn-primary" href="#quickstart">$ ./run.sh</a>
+        <a class="btn btn-ghost" href="https://github.com/neoocean/p4-web">GitHub&nbsp;↗</a>
         <a class="btn btn-ghost" href="#security">Security notes</a>
       </div>
 
@@ -540,13 +541,15 @@
     <div class="content">
       <h2>Running in under a minute</h2>
       <p class="kicker">One script creates the venv, installs two dependencies, and serves.</p>
-      <pre class="term"><span class="p">$</span> ./run.sh
+      <pre class="term"><span class="p">$</span> git clone https://github.com/neoocean/p4-web.git &amp;&amp; cd p4-web
+<span class="p">$</span> ./run.sh
 <span class="c"># equivalent to:</span>
 <span class="p">$</span> python3 -m venv .venv
 <span class="p">$</span> .venv/bin/pip install -r requirements.txt
 <span class="p">$</span> .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8080
 <span class="c"># then open http://127.0.0.1:8080 and log in with a Perforce account</span></pre>
       <p class="reqline">requires: Python 3.10+ · the <code>p4</code> CLI on PATH · network access to your Perforce server</p>
+      <p class="reqline">no git handy? <a href="https://github.com/neoocean/p4-web/archive/refs/heads/main.zip">download the source as a .zip</a></p>
     </div>
   </section>
 
@@ -614,7 +617,7 @@ static/
 
   <footer>
     <span>p4-web — built in the open, one numbered changelist at a time.</span>
-    <span>CL 65134 → 65225 · 2026</span>
+    <span><a href="https://github.com/neoocean/p4-web">GitHub</a> · <a href="https://github.com/neoocean/p4-web/archive/refs/heads/main.zip">source .zip</a> · CL 65134 → 65266 · 2026</span>
   </footer>
 
 </div>
