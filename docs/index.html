@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="p4-web: a lightweight read+write web UI for Perforce - a P4V / Swarm alternative for individuals and small teams.">
+<title>p4-web — the whole depot in a browser tab</title>
+<style>
+  :root {
+    --bg: #F7F8F5;
+    --panel: #FFFFFF;
+    --panel-deep: #10151B;
+    --panel-deep-ink: #D7DEE6;
+    --ink: #1C2128;
+    --muted: #5B6572;
+    --faint: #8A948E;
+    --line: #DDE3DC;
+    --accent: #256E45;
+    --accent-ink: #FFFFFF;
+    --add-bg: #E5F3EA;
+    --add-ink: #1E5E3B;
+    --del-bg: #FBEAE8;
+    --del-ink: #A33328;
+    --hunk-ink: #6B5CA5;
+    --chip-bg: #EDF1EC;
+    --shadow: 0 1px 2px rgba(28,33,40,.06), 0 8px 24px rgba(28,33,40,.05);
+    --mono: "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12161B;
+      --panel: #181E25;
+      --panel-deep: #0C1015;
+      --panel-deep-ink: #C9D2DB;
+      --ink: #E6EAEE;
+      --muted: #9AA6B2;
+      --faint: #6C7883;
+      --line: #29323C;
+      --accent: #52B383;
+      --accent-ink: #0C1512;
+      --add-bg: #17301F;
+      --add-ink: #7CCB9F;
+      --del-bg: #391D19;
+      --del-ink: #E08A80;
+      --hunk-ink: #A99BD6;
+      --chip-bg: #1F2831;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #F7F8F5;
+    --panel: #FFFFFF;
+    --panel-deep: #10151B;
+    --panel-deep-ink: #D7DEE6;
+    --ink: #1C2128;
+    --muted: #5B6572;
+    --faint: #8A948E;
+    --line: #DDE3DC;
+    --accent: #256E45;
+    --accent-ink: #FFFFFF;
+    --add-bg: #E5F3EA;
+    --add-ink: #1E5E3B;
+    --del-bg: #FBEAE8;
+    --del-ink: #A33328;
+    --hunk-ink: #6B5CA5;
+    --chip-bg: #EDF1EC;
+    --shadow: 0 1px 2px rgba(28,33,40,.06), 0 8px 24px rgba(28,33,40,.05);
+  }
+  :root[data-theme="dark"] {
+    --bg: #12161B;
+    --panel: #181E25;
+    --panel-deep: #0C1015;
+    --panel-deep-ink: #C9D2DB;
+    --ink: #E6EAEE;
+    --muted: #9AA6B2;
+    --faint: #6C7883;
+    --line: #29323C;
+    --accent: #52B383;
+    --accent-ink: #0C1512;
+    --add-bg: #17301F;
+    --add-ink: #7CCB9F;
+    --del-bg: #391D19;
+    --del-ink: #E08A80;
+    --hunk-ink: #A99BD6;
+    --chip-bg: #1F2831;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; animation: none !important; }
+  }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+  code, pre, .mono { font-family: var(--mono); }
+
+  .page {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 0 24px 96px;
+  }
+
+  /* ---- section scaffold: CL gutter + content, like a file view ---- */
+  section.cl {
+    display: grid;
+    grid-template-columns: 118px 1fr;
+    gap: 28px;
+    margin-top: 96px;
+  }
+  .gutter {
+    border-right: 2px solid var(--line);
+    padding-right: 18px;
+    text-align: right;
+  }
+  .gutter .clno {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .gutter .clmeta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--faint);
+    margin-top: 2px;
+    white-space: nowrap;
+  }
+  .content { min-width: 0; }
+  h2 {
+    font-family: var(--mono);
+    font-size: 24px;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+    margin: 0 0 6px;
+    text-wrap: balance;
+  }
+  .kicker {
+    color: var(--muted);
+    max-width: 62ch;
+    margin: 0 0 28px;
+  }
+  @media (max-width: 720px) {
+    section.cl { grid-template-columns: 1fr; gap: 10px; margin-top: 72px; }
+    .gutter {
+      border-right: 0;
+      border-bottom: 2px solid var(--line);
+      padding: 0 0 8px;
+      text-align: left;
+      display: flex;
+      gap: 12px;
+      align-items: baseline;
+    }
+    .gutter .clmeta { margin-top: 0; }
+  }
+
+  /* ---- hero ---- */
+  header.hero {
+    padding-top: 84px;
+    display: grid;
+    grid-template-columns: 118px 1fr;
+    gap: 28px;
+  }
+  @media (max-width: 720px) {
+    header.hero { grid-template-columns: 1fr; padding-top: 56px; }
+    .hero-gutter { display: none; }
+  }
+  .hero-gutter {
+    border-right: 2px solid var(--line);
+    padding-right: 18px;
+    text-align: right;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--faint);
+    line-height: 2.1;
+    user-select: none;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 18px;
+  }
+  h1 {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: clamp(30px, 5.4vw, 52px);
+    line-height: 1.12;
+    letter-spacing: -0.035em;
+    margin: 0 0 20px;
+    text-wrap: balance;
+  }
+  h1 .cursor {
+    display: inline-block;
+    width: 0.55em;
+    height: 1em;
+    background: var(--accent);
+    vertical-align: text-bottom;
+    margin-left: 4px;
+    animation: blink 1.2s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  .lede {
+    font-size: 18px;
+    color: var(--muted);
+    max-width: 58ch;
+    margin: 0 0 30px;
+  }
+  .lede strong { color: var(--ink); font-weight: 600; }
+  .cta-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 48px; }
+  .btn {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 11px 20px;
+    border-radius: 6px;
+    text-decoration: none;
+    border: 1.5px solid transparent;
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .btn:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); }
+  .btn-ghost { border-color: var(--line); color: var(--ink); background: var(--panel); }
+
+  /* ---- diff panel (hero thesis) ---- */
+  .diff-panel {
+    background: var(--panel-deep);
+    color: var(--panel-deep-ink);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.75;
+  }
+  .diff-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    font-size: 12px;
+    color: var(--faint);
+    border-bottom: 1px solid rgba(255,255,255,.07);
+  }
+  .diff-title .dots { display: flex; gap: 6px; }
+  .diff-title .dots span {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: currentColor; opacity: .35;
+  }
+  .diff-body { padding: 14px 0; overflow-x: auto; }
+  .diff-body .row {
+    display: grid;
+    grid-template-columns: 3.2em 1.4em 1fr;
+    min-width: max-content;
+    padding-right: 20px;
+  }
+  .diff-body .ln {
+    color: rgba(150,160,170,.45);
+    text-align: right;
+    padding-right: 1em;
+    user-select: none;
+  }
+  .diff-body .sign { user-select: none; }
+  .row.hunk { color: var(--hunk-ink); }
+  .row.hunk .ln { visibility: hidden; }
+  .row.del { background: rgba(200,70,55,.16); color: #E8998F; }
+  .row.add { background: rgba(70,180,120,.14); color: #8CD6AC; }
+  .row.ctx { color: rgba(200,210,220,.75); }
+
+  /* ---- feature grid ---- */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  @media (max-width: 860px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 18px 18px 16px;
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+  .card .cmd {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    background: var(--chip-bg);
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+  }
+  .card h3 { font-size: 15.5px; margin: 0 0 6px; font-weight: 650; }
+  .card p { font-size: 14px; color: var(--muted); margin: 0; }
+
+  /* ---- write ops split ---- */
+  .split {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 14px;
+    align-items: stretch;
+  }
+  @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
+  .pane {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 22px;
+  }
+  .pane h3 {
+    font-family: var(--mono);
+    font-size: 14px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 14px;
+  }
+  ul.checks, ul.locks { list-style: none; margin: 0; padding: 0; }
+  ul.checks li, ul.locks li {
+    padding-left: 26px;
+    position: relative;
+    margin-bottom: 10px;
+    font-size: 15px;
+  }
+  ul.checks li::before {
+    content: "+";
+    position: absolute; left: 0; top: 0;
+    font-family: var(--mono);
+    font-weight: 700;
+    color: var(--add-ink);
+    background: var(--add-bg);
+    width: 17px; height: 17px;
+    border-radius: 4px;
+    text-align: center;
+    line-height: 17px;
+    font-size: 13px;
+    margin-top: 3px;
+  }
+  ul.locks li::before {
+    content: "▸";
+    position: absolute; left: 2px; top: 0;
+    color: var(--accent);
+    font-size: 13px;
+  }
+  ul.checks li code, ul.locks li code, .content p code, .sec-list li code {
+    background: var(--chip-bg);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.87em;
+  }
+
+  /* ---- quickstart ---- */
+  pre.term {
+    background: var(--panel-deep);
+    color: var(--panel-deep-ink);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 20px 22px;
+    font-size: 14px;
+    line-height: 1.8;
+    overflow-x: auto;
+    margin: 0 0 14px;
+  }
+  pre.term .p { color: #6FBF92; user-select: none; }
+  pre.term .c { color: rgba(150,160,170,.55); }
+  .reqline {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* ---- security ---- */
+  ul.sec-list { list-style: none; margin: 0; padding: 0; max-width: 66ch; }
+  ul.sec-list li {
+    border-left: 3px solid var(--accent);
+    background: var(--panel);
+    border-radius: 0 6px 6px 0;
+    padding: 12px 16px;
+    margin-bottom: 10px;
+    font-size: 15px;
+  }
+  ul.sec-list li strong { font-weight: 650; }
+
+  /* ---- deploy ---- */
+  .deploy { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 720px) { .deploy { grid-template-columns: 1fr; } }
+  .deploy .card h3 { font-family: var(--mono); font-size: 14px; }
+  .deploy .card code.one {
+    display: block;
+    margin-top: 10px;
+    background: var(--chip-bg);
+    padding: 8px 10px;
+    border-radius: 5px;
+    font-size: 12.5px;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  /* ---- architecture ---- */
+  .arch-note { max-width: 62ch; color: var(--muted); margin: 14px 0 0; }
+
+  /* ---- footer ---- */
+  footer {
+    margin-top: 110px;
+    border-top: 2px solid var(--line);
+    padding-top: 26px;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <header class="hero">
+    <div class="hero-gutter" aria-hidden="true">
+      1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9<br>10<br>11<br>12<br>13<br>14
+    </div>
+    <div>
+      <p class="eyebrow">//depot/… — read + write</p>
+      <h1>The whole depot,<br>in a browser tab.<span class="cursor"></span></h1>
+      <p class="lede">
+        <strong>p4-web</strong> is a lightweight web UI for Perforce — a P4V / Swarm
+        alternative sized for individuals and small teams. Browse, blame, diff,
+        search, review, and even <strong>edit &amp; submit</strong>, from one FastAPI
+        process that shells out to the <code>p4</code> CLI. No database server,
+        no build step, no framework.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#quickstart">$ ./run.sh</a>
+        <a class="btn btn-ghost" href="#security">Security notes</a>
+      </div>
+
+      <div class="diff-panel" aria-label="Diff of your Perforce workflow, before and after p4-web">
+        <div class="diff-title">
+          <span class="dots"><span></span><span></span><span></span></span>
+          p4 diff2 //you/workflow#before //you/workflow#after
+        </div>
+        <div class="diff-body">
+          <div class="row hunk"><span class="ln">·</span><span class="sign"></span><span>@@ your daily Perforce workflow @@</span></div>
+          <div class="row del"><span class="ln">1</span><span class="sign">-</span><span>install P4V on every machine you might read code from</span></div>
+          <div class="row del"><span class="ln">2</span><span class="sign">-</span><span>stand up Swarm just to link a changelist in chat</span></div>
+          <div class="row add"><span class="ln">1</span><span class="sign">+</span><span>./run.sh                      # one process, ~zero setup</span></div>
+          <div class="row add"><span class="ln">2</span><span class="sign">+</span><span>open http://127.0.0.1:8080    # log in with your p4 account</span></div>
+          <div class="row ctx"><span class="ln">3</span><span class="sign">&nbsp;</span><span>protections still apply — every call runs as you</span></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section class="cl" id="read">
+    <div class="gutter">
+      <div class="clno">CL 65134</div>
+      <div class="clmeta">read-only core</div>
+    </div>
+    <div class="content">
+      <h2>Everything you open P4V for</h2>
+      <p class="kicker">Each card is backed by the real <code>p4</code> command underneath —
+        the app is a thin, honest wrapper, so results match your CLI exactly.</p>
+      <div class="grid">
+        <div class="card"><span class="cmd">p4 dirs</span><h3>Depot browser</h3><p>Breadcrumbs, sortable listings, and a P4V-style lazy tree sidebar synced to deep links.</p></div>
+        <div class="card"><span class="cmd">p4 print</span><h3>File viewer</h3><p>Syntax highlighting (vendored, offline), line-number gutter, revision dropdown, line permalinks.</p></div>
+        <div class="card"><span class="cmd">p4 filelog</span><h3>History &amp; graph</h3><p>Full history across renames and branches, plus an SVG revision graph with integration provenance.</p></div>
+        <div class="card"><span class="cmd">p4 diff2</span><h3>Diff tools</h3><p>Unified and side-by-side everywhere: arbitrary revision pairs, folder diffs, shelved-vs-base.</p></div>
+        <div class="card"><span class="cmd">p4 annotate</span><h3>Time-lapse blame</h3><p>Per-line changelist + author gutter, with a slider that re-blames the file at any point in history.</p></div>
+        <div class="card"><span class="cmd">p4 changes</span><h3>Changelists</h3><p>Filter by user, path, text, or date — an incremental local index makes description and filename search fast.</p></div>
+        <div class="card"><span class="cmd">p4 grep</span><h3>Search</h3><p>File-name search across depots and content search within a scope; matches jump to the highlighted line.</p></div>
+        <div class="card"><span class="cmd">p4 labels …</span><h3>Metadata browsers</h3><p>Labels, jobs with fixes, branch mappings, streams, users &amp; groups — all under one “More” menu.</p></div>
+        <div class="card"><span class="cmd">app-side</span><h3>Review touches</h3><p>Rendered markdown with README panels, inline file/line comments with threads, image previews, raw download.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cl" id="write">
+    <div class="gutter">
+      <div class="clno">CL 65170</div>
+      <div class="clmeta">write ops</div>
+    </div>
+    <div class="content">
+      <h2>My Changes: edit and submit from the browser</h2>
+      <p class="kicker">Each user gets a server-side workspace (<code>p4web-&lt;user&gt;</code>) with
+        sparse sync — files appear only while you work on them.</p>
+      <div class="split">
+        <div class="pane">
+          <h3>What you can do</h3>
+          <ul class="checks">
+            <li>Create pending changelists and edit text files in a web editor</li>
+            <li>Upload new or replacement files, binary-safe</li>
+            <li>Mark for delete, revert, shelve / unshelve</li>
+            <li>Submit behind a confirmation dialog showing the full file list</li>
+          </ul>
+        </div>
+        <div class="pane">
+          <h3>Guardrails</h3>
+          <ul class="locks">
+            <li>You can only touch your own p4-web pending changelists</li>
+            <li>Every write is recorded in <code>data/audit.log</code></li>
+            <li>Login throttling per account and per IP; API rate limits per session</li>
+            <li>Perforce protections apply — the server never escalates</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cl" id="quickstart">
+    <div class="gutter">
+      <div class="clno">CL 65139</div>
+      <div class="clmeta">run.sh</div>
+    </div>
+    <div class="content">
+      <h2>Running in under a minute</h2>
+      <p class="kicker">One script creates the venv, installs two dependencies, and serves.</p>
+      <pre class="term"><span class="p">$</span> ./run.sh
+<span class="c"># equivalent to:</span>
+<span class="p">$</span> python3 -m venv .venv
+<span class="p">$</span> .venv/bin/pip install -r requirements.txt
+<span class="p">$</span> .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8080
+<span class="c"># then open http://127.0.0.1:8080 and log in with a Perforce account</span></pre>
+      <p class="reqline">requires: Python 3.10+ · the <code>p4</code> CLI on PATH · network access to your Perforce server</p>
+    </div>
+  </section>
+
+  <section class="cl" id="security">
+    <div class="gutter">
+      <div class="clno">CL 65207</div>
+      <div class="clmeta">sec review</div>
+    </div>
+    <div class="content">
+      <h2>Security, the boring way</h2>
+      <p class="kicker">Reviewed end-to-end (code review, security audit, red team) with the
+        write-up in the repo. The core boundaries:</p>
+      <ul class="sec-list">
+        <li><strong>Your ticket, your permissions.</strong> Every API call runs <code>p4</code> with the session’s own user and ticket — Perforce protections apply exactly as in P4V.</li>
+        <li><strong>No ticket leakage.</strong> <code>P4TICKETS</code> points at <code>/dev/null</code> for every subprocess; the server’s own tickets file can never authenticate a web user.</li>
+        <li><strong>Passwords are never stored.</strong> Credentials are exchanged for a <code>p4 login</code> ticket; you can paste a ticket instead, Swarm-style.</li>
+        <li><strong>Command allowlist.</strong> The p4 wrapper only permits known commands; write operations are confined to your own p4-web changelists and audited.</li>
+        <li><strong>Hardened endpoints.</strong> Streamed raw downloads and bounded upload spooling (no 100&nbsp;MB buffers), per-session rate limits, secure cookies, login throttling.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="cl" id="deploy">
+    <div class="gutter">
+      <div class="clno">CL 65160</div>
+      <div class="clmeta">deploy</div>
+    </div>
+    <div class="content">
+      <h2>Deploy anywhere a shell runs</h2>
+      <p class="kicker">Sessions persist in SQLite (<code>data/sessions.db</code>), so restarts
+        don’t log anyone out. For <code>ssl:</code> servers, <code>P4WEB_AUTO_TRUST=1</code> accepts
+        the fingerprint on first connect.</p>
+      <div class="deploy">
+        <div class="card"><h3>Docker</h3><p>The image bundles the p4 CLI; sessions and SSL trust live on the <code>/data</code> volume.</p><code class="one">docker compose up -d</code></div>
+        <div class="card"><h3>macOS · launchd</h3><p>Always-on local service via a LaunchAgent plist — pairs well with a tailnet.</p><code class="one">launchctl load com.p4web.plist</code></div>
+        <div class="card"><h3>Linux · systemd</h3><p>A standard unit file; edit paths, enable, done.</p><code class="one">systemctl enable --now p4web</code></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cl" id="arch">
+    <div class="gutter">
+      <div class="clno">CL 65141</div>
+      <div class="clmeta">handoff</div>
+    </div>
+    <div class="content">
+      <h2>Small enough to read</h2>
+      <pre class="term">app/
+  main.py      FastAPI routes: auth, browse, file, diff, annotate,
+               changes, comments, workspace write ops
+  p4.py        p4 CLI wrapper: -G marshal parsing, path escaping,
+               command allowlist, error → HTTP mapping
+  sessions.py  cookie sid → {user, ticket}, SQLite-backed
+  index.py     per-user changelist search index (respects protections)
+static/
+  index.html   login screen + app shell
+  app.js       hash-routed SPA — no framework, no build
+  style.css    light + dark, responsive below 768px
+  vendor/      highlight.js, marked, DOMPurify (offline)</pre>
+      <p class="arch-note">The entire stack is one Python process and a directory of static
+        files. If something breaks, the code that broke is short enough to read over coffee —
+        and every feature maps to a p4 command you already know.</p>
+    </div>
+  </section>
+
+  <footer>
+    <span>p4-web — built in the open, one numbered changelist at a time.</span>
+    <span>CL 65134 → 65225 · 2026</span>
+  </footer>
+
+</div>
+</body>
+</html>
