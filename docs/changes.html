@@ -69,6 +69,8 @@
     <div class="content">
       <h2>Search index, hardening, and this site</h2>
       <ul class="chg-list">
+        <li><span class="chg-cl">65340</span><span class="chg-title">Cache-bust the app’s CSS/JS so a deploy reaches already-open browsers <span class="chg-note">(no-store HTML shell, <code>?v=</code> tags on <code>app.js</code>/<code>style.css</code>)</span></span></li>
+        <li><span class="chg-cl">65339</span><span class="chg-title">“Index older” backfills continuously — one click keeps extending the index backward until you press Stop or leave the Changes page</span></li>
         <li><span class="chg-cl">65319</span><span class="chg-title">Deployment and supply-chain hardening <span class="chg-note">(non-root container, SHA-256-pinned p4 client, exact dependency pins, loopback-only compose bind)</span></span></li>
         <li><span class="chg-cl">65314</span><span class="chg-title">Harden <code>/api/diff</code>: require a depot-path (<code>//</code>) prefix on <code>path</code> and <code>path2</code> <span class="chg-note">(argument-injection class, matching every peer endpoint)</span></span></li>
         <li><span class="chg-cl">65277</span><span class="chg-title">Analytics snippet on all six site pages</span></li>
