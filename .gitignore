@@ -9,6 +9,13 @@ venv/
 # log, per-user server-side workspaces, and the search index. Never commit.
 /data/
 
+# Internal working docs — kept in Perforce, NOT for the public GitHub
+# mirror. They leak the live tailnet URL, real depot paths, and an
+# unpatched-weakness list (attacker playbook). Never publish.
+/HANDOFF.md
+/LESSONS.md
+/docs/code-review-secaudit-redteam.md
+
 # OS / editor
 .DS_Store
 Thumbs.db
