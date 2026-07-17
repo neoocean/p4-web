@@ -1,3 +1,6 @@
-fastapi>=0.115
-uvicorn[standard]>=0.30
-python-multipart>=0.0.9
+# Pinned to exact, locally-tested versions for reproducible builds and a
+# stable supply chain (a yanked/compromised upstream release can't be
+# pulled in on the next rebuild). Bump deliberately, then re-test.
+fastapi==0.139.1
+uvicorn[standard]==0.51.0
+python-multipart==0.0.32

@@ -5,6 +5,11 @@ __pycache__/
 venv/
 *.egg-info/
 
+# Local secrets — Perforce credentials for testing. Never commit.
+.env
+.env.*
+!.env.example
+
 # Runtime data — holds live Perforce tickets (sessions.db), the audit
 # log, per-user server-side workspaces, and the search index. Never commit.
 /data/

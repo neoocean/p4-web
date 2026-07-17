@@ -8,7 +8,8 @@
   2. cp deploy/com.p4web.launchd.plist ~/Library/LaunchAgents/com.p4web.plist
   3. launchctl load ~/Library/LaunchAgents/com.p4web.plist
 
-  Logs land in /tmp/p4web.out|err. Unload with `launchctl unload`.
+  Logs land in ~/Library/Logs/com.p4web.out|err (user-owned, not the
+  world-readable /tmp). Unload with `launchctl unload`.
 -->
 <plist version="1.0">
 <dict>
@@ -35,9 +36,11 @@
   <key>KeepAlive</key>
   <true/>
 
+  <!-- Keep logs under the user's home, not the world-readable /tmp:
+       p4 error strings can surface on stderr. -->
   <key>StandardOutPath</key>
-  <string>/tmp/p4web.out</string>
+  <string>/Users/CHANGE_ME/Library/Logs/com.p4web.out</string>
   <key>StandardErrorPath</key>
-  <string>/tmp/p4web.err</string>
+  <string>/Users/CHANGE_ME/Library/Logs/com.p4web.err</string>
 </dict>
 </plist>

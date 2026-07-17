@@ -2,13 +2,27 @@ services:
   p4web:
     build: .
     ports:
-      - "8080:8080"
+      # Bind to loopback only. Put a TLS reverse proxy (or `tailscale
+      # serve`) in front for remote access — never publish this straight
+      # onto a public interface. Change to "8080:8080" only if the host
+      # is already isolated behind a firewall you trust.
+      - "127.0.0.1:8080:8080"
     environment:
       # Address of your Perforce server as seen FROM the container.
       # host.docker.internal reaches the docker host (Mac/Windows).
       P4WEB_P4PORT: "ssl:host.docker.internal:1666"
-      # Accept the server's SSL fingerprint on first connect.
+      # SSL trust. PREFERRED: pin the server's fingerprint so a MITM on
+      # first connect can't slip in its own cert — get it with
+      # `p4 -p <port> trust -l` and set it here:
+      # P4WEB_P4FINGERPRINT: "AA:BB:CC:...:FF"
+      # Fallback for a LAN you fully control: trust-on-first-use. Leave
+      # unset once a fingerprint is pinned or the trust volume is seeded.
       P4WEB_AUTO_TRUST: "1"
+      # X-Forwarded-For is trusted only from this proxy address. In Docker
+      # the proxy is the bridge/gateway, not localhost — set it to your
+      # reverse-proxy address. NEVER use "*" (lets any client spoof its IP,
+      # defeating the login throttle and forging audit-log IPs).
+      P4WEB_FORWARDED_ALLOW_IPS: "127.0.0.1"
     volumes:
       - p4web-data:/data
     restart: unless-stopped
