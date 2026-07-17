@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="p4-web changelog: every submitted changelist, newest first.">
+<title>Changes — p4-web</title>
+<link rel="stylesheet" href="./site.css">
+</head>
+<body>
+<div class="page">
+
+  <nav class="sitenav">
+    <a class="brand" href="./">p4-web</a>
+    <span class="sitenav-links">
+      <a href="./changes.html" aria-current="page">Changes</a>
+      <a href="./guide.html">Guide</a>
+      <a href="https://github.com/neoocean/p4-web">GitHub&nbsp;↗</a>
+    </span>
+  </nav>
+
+  <header class="doc-head">
+    <h1>Changes</h1>
+    <p class="lede">p4-web is developed in Perforce — every entry below is a
+      real submitted changelist, newest first. The source is mirrored to
+      <a href="https://github.com/neoocean/p4-web">GitHub</a>.</p>
+  </header>
+
+  <section class="cl">
+    <div class="gutter">
+      <div class="clno">2026-07-17</div>
+      <div class="clmeta">day 2</div>
+    </div>
+    <div class="content">
+      <h2>Search index, hardening, and this site</h2>
+      <ul class="chg-list">
+        <li><span class="chg-cl">65268</span><span class="chg-title">Landing page: GitHub repository and source <code>.zip</code> download links</span></li>
+        <li><span class="chg-cl">65266</span><span class="chg-title">Landing page: fix mobile zoom-out caused by the hero diff overflow</span></li>
+        <li><span class="chg-cl">65265</span><span class="chg-title">GitHub Pages custom domain (<code>docs/CNAME</code> → p4-web.woojinkim.org)</span></li>
+        <li><span class="chg-cl">65264</span><span class="chg-title">Project landing page (<code>docs/index.html</code>)</span></li>
+        <li><span class="chg-cl">65225</span><span class="chg-title">Changes view picks its engine automatically — the user-facing “Fast” toggle is gone <span class="chg-note">(index for description/filename/date browsing, live p4 for pending and path prefixes)</span></span></li>
+        <li><span class="chg-cl">65221</span><span class="chg-title">Date filters accept <code>YYYY-MM-DD</code> as plain text inputs <span class="chg-note">(native date pickers rendered browser-locale formats)</span></span></li>
+        <li><span class="chg-cl">65220</span><span class="chg-title">Per-user changelist search index — instant description and filename search that respects protections</span></li>
+        <li><span class="chg-cl">65218</span><span class="chg-title">Graceful session-expiry: re-login notice, prefilled username, location preserved</span></li>
+        <li><span class="chg-cl">65217</span><span class="chg-title">Ops hardening: proxy-header allowlist pinned, <code>sessions.db</code> permissions re-tightened on every open</span></li>
+        <li><span class="chg-cl">65216</span><span class="chg-title">DoS hardening: streamed raw downloads, bounded upload spooling, per-session API rate limit</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="cl">
+    <div class="gutter">
+      <div class="clno">2026-07-16</div>
+      <div class="clmeta">day 1 · night</div>
+    </div>
+    <div class="content">
+      <h2>Review features and a security pass</h2>
+      <ul class="chg-list">
+        <li><span class="chg-cl">65207</span><span class="chg-title">Standing security review (code review + audit + red team) with three defense-in-depth fixes</span></li>
+        <li><span class="chg-cl">65206</span><span class="chg-title">Change detail: file paths are clickable — text opens the viewer, binaries download</span></li>
+        <li><span class="chg-cl">65196</span><span class="chg-title">Inline comments: file/line and changelist threads, markdown bodies, resolve/edit/delete</span></li>
+        <li><span class="chg-cl">65193</span><span class="chg-title">Path favorites with a root dashboard <span class="chg-note">(recent changes per favorite)</span></span></li>
+        <li><span class="chg-cl">65192</span><span class="chg-title">Markdown rendering: README panels in browse, Rendered/Source toggle <span class="chg-note">(marked + DOMPurify, vendored)</span></span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="cl">
+    <div class="gutter">
+      <div class="clno">2026-07-16</div>
+      <div class="clmeta">day 1 · evening</div>
+    </div>
+    <div class="content">
+      <h2>Write operations</h2>
+      <ul class="chg-list">
+        <li><span class="chg-cl">65184</span><span class="chg-title">Dark mode (system default with a manual toggle) + docs wrap-up</span></li>
+        <li><span class="chg-cl">65182</span><span class="chg-title">Sortable depot listings; line-number permalinks</span></li>
+        <li><span class="chg-cl">65181</span><span class="chg-title">Shelve / unshelve / delete shelf from My Changes</span></li>
+        <li><span class="chg-cl">65178</span><span class="chg-title">Write UI: My Changes page, web editor, uploads, submit confirmation</span></li>
+        <li><span class="chg-cl">65175</span><span class="chg-title">Write backend: per-user server-side workspaces, own-changelist guard, audit log</span></li>
+        <li><span class="chg-cl">65170</span><span class="chg-title">Login rate limiting (per account and per IP) and Secure cookies</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="cl">
+    <div class="gutter">
+      <div class="clno">2026-07-16</div>
+      <div class="clmeta">day 1 · afternoon</div>
+    </div>
+    <div class="content">
+      <h2>P4V parity and operations</h2>
+      <ul class="chg-list">
+        <li><span class="chg-cl">65168</span><span class="chg-title">Mobile UX pass: whole-row tap targets, slide-over tree, responsive tables</span></li>
+        <li><span class="chg-cl">65165</span><span class="chg-title">Deployment: Dockerfile + compose, launchd and systemd units, SSL trust-on-first-use</span></li>
+        <li><span class="chg-cl">65162</span><span class="chg-title">User autocomplete on changelist filters</span></li>
+        <li><span class="chg-cl">65161</span><span class="chg-title">SVG revision graph tab with integration provenance</span></li>
+        <li><span class="chg-cl">65157</span><span class="chg-title">Friendly error translation for common p4 failures</span></li>
+        <li><span class="chg-cl">65155</span><span class="chg-title">Sessions persist in SQLite — restarts don't log anyone out</span></li>
+        <li><span class="chg-cl">65153</span><span class="chg-title">Mobile layout foundations</span></li>
+        <li><span class="chg-cl">65151</span><span class="chg-title">Depot tree sidebar, lazy-loading and synced with deep links</span></li>
+        <li><span class="chg-cl">65149</span><span class="chg-title">Metadata browsers: labels, jobs (with fixes), branches, streams, users &amp; groups</span></li>
+        <li><span class="chg-cl">65148</span><span class="chg-title">Raw view/download and inline image previews <span class="chg-note">(CSP-sandboxed)</span></span></li>
+        <li><span class="chg-cl">65147</span><span class="chg-title">Diff suite: side-by-side everywhere, revision pairs, folder diff, time-lapse annotate</span></li>
+        <li><span class="chg-cl">65145</span><span class="chg-title">Depot search: file names across depots, content via <code>p4 grep</code></span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="cl">
+    <div class="gutter">
+      <div class="clno">2026-07-16</div>
+      <div class="clmeta">day 1 · morning</div>
+    </div>
+    <div class="content">
+      <h2>The read-only core</h2>
+      <ul class="chg-list">
+        <li><span class="chg-cl">65139</span><span class="chg-title">README, <code>/api/info</code>, login-screen polish</span></li>
+        <li><span class="chg-cl">65138</span><span class="chg-title">Changelist browsing: filters, keyset paging, detail view with per-file diffs</span></li>
+        <li><span class="chg-cl">65137</span><span class="chg-title">File history (renames included), unified diffs, annotate</span></li>
+        <li><span class="chg-cl">65135</span><span class="chg-title">Depot browser and file viewer with offline syntax highlighting</span></li>
+        <li><span class="chg-cl">65134</span><span class="chg-title">Project skeleton: FastAPI app, <code>p4 -G</code> wrapper, ticket-based login</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <span><a href="./">p4-web</a> — built in the open, one numbered changelist at a time.</span>
+    <span><a href="https://github.com/neoocean/p4-web">GitHub</a> · <a href="./guide.html">Guide</a> · 2026</span>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="p4-web user guide: log in, browse the depot, read files, blame, diff, search changes, and edit &amp; submit from the browser.">
+<title>Guide — p4-web</title>
+<link rel="stylesheet" href="./site.css">
+</head>
+<body>
+<div class="page">
+
+  <nav class="sitenav">
+    <a class="brand" href="./">p4-web</a>
+    <span class="sitenav-links">
+      <a href="./changes.html">Changes</a>
+      <a href="./guide.html" aria-current="page">Guide</a>
+      <a href="https://github.com/neoocean/p4-web">GitHub&nbsp;↗</a>
+    </span>
+  </nav>
+
+  <header class="doc-head">
+    <h1>Guide</h1>
+    <p class="lede">A tour of p4-web, from login to submit. If you haven't
+      installed it yet, the <a href="./#quickstart">quickstart</a> gets a
+      server running in under a minute.</p>
+    <p class="demo-note">All screenshots show a demo depot (<code>//rocket</code>)
+      with fictional users and changelists — your instance will show your own
+      server's data, filtered by your Perforce protections.</p>
+  </header>
+
+  <section class="cl" id="login">
+    <div class="gutter">
+      <div class="clno">p4 login</div>
+      <div class="clmeta">step 1</div>
+    </div>
+    <div class="content">
+      <h2>Log in with your Perforce account</h2>
+      <p class="kicker">Credentials are exchanged for a <code>p4 login</code>
+        ticket — the password itself is never stored. If your site uses
+        long-lived tickets, you can paste a ticket value in place of the
+        password, Swarm-style. The server address shown under the logo is the
+        instance's <code>P4PORT</code>.</p>
+      <figure class="shot">
+        <img src="./assets/guide-login.png" alt="p4-web login screen with user and password fields" width="1180" height="780" loading="lazy">
+        <figcaption>Login — user + password, or user + pasted ticket</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="cl" id="browse">
+    <div class="gutter">
+      <div class="clno">p4 dirs</div>
+      <div class="clmeta">step 2</div>
+    </div>
+    <div class="content">
+      <h2>Browse the depot</h2>
+      <p class="kicker">The collapsible tree on the left stays in sync with
+        deep links, P4V-style. Listings show revision, changelist, type and
+        modified time — click a column header to sort. The ☆ button saves the
+        current path as a favorite; favorites become a dashboard on the root
+        page. Directories with a README render it below the listing.</p>
+      <figure class="shot">
+        <img src="./assets/guide-browse.png" alt="Depot browser with tree sidebar, breadcrumbs, and a sortable file listing" width="1180" height="780" loading="lazy">
+        <figcaption>Depot browser — tree, breadcrumbs, sortable listing</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="cl" id="read">
+    <div class="gutter">
+      <div class="clno">p4 print</div>
+      <div class="clmeta">step 3</div>
+    </div>
+    <div class="content">
+      <h2>Read files</h2>
+      <p class="kicker">Syntax highlighting works offline (vendored
+        highlight.js). The revision dropdown re-renders the file at any
+        revision; Raw and Download serve the exact bytes. Click a line number
+        to copy a permalink or start an inline comment thread. Markdown files
+        get a Rendered/Source toggle.</p>
+      <figure class="shot">
+        <img src="./assets/guide-file.png" alt="File viewer showing syntax-highlighted Python with line numbers, revision dropdown, and comment box" width="1180" height="780" loading="lazy">
+        <figcaption>File viewer — Content · History · Annotate · Graph tabs</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="cl" id="annotate">
+    <div class="gutter">
+      <div class="clno">p4 annotate</div>
+      <div class="clmeta">step 4</div>
+    </div>
+    <div class="content">
+      <h2>Blame, with a time machine</h2>
+      <p class="kicker">The Annotate tab shows the changelist and author that
+        last touched every line — click through to the full change. The
+        slider in the header is a time-lapse: drag it to re-blame the file as
+        it stood at any earlier revision.</p>
+      <figure class="shot">
+        <img src="./assets/guide-annotate.png" alt="Annotate view with per-line changelist and author gutter and a revision time-lapse slider" width="1180" height="780" loading="lazy">
+        <figcaption>Annotate — per-line change + author, time-lapse slider</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="cl" id="diff">
+    <div class="gutter">
+      <div class="clno">p4 diff2</div>
+      <div class="clmeta">step 5</div>
+    </div>
+    <div class="content">
+      <h2>Compare revisions</h2>
+      <p class="kicker">Unified and side-by-side views everywhere a diff
+        appears; the toggle remembers your preference. Pick arbitrary
+        revision pairs from the History tab, or diff whole directory trees
+        with Folder diff (optionally pinned to an @change or @date).</p>
+      <figure class="shot">
+        <img src="./assets/guide-diff.png" alt="Side-by-side diff of two revisions with added and removed lines highlighted" width="1180" height="780" loading="lazy">
+        <figcaption>Diff — side-by-side, arbitrary revision pairs</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="cl" id="changes">
+    <div class="gutter">
+      <div class="clno">p4 changes</div>
+      <div class="clmeta">step 6</div>
+    </div>
+    <div class="content">
+      <h2>Find changes</h2>
+      <p class="kicker">Filter submitted or pending changelists by user, path,
+        filename, description text, or date range. Description and filename
+        search run against a per-user local index (the ⚡ bar) that respects
+        your protections and updates incrementally — searches over thousands
+        of changes come back instantly.</p>
+      <figure class="shot">
+        <img src="./assets/guide-changes.png" alt="Changes view with filter bar, index status bar, and a list of changelists" width="1180" height="780" loading="lazy">
+        <figcaption>Changes — filters + indexed description/filename search</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="cl" id="write">
+    <div class="gutter">
+      <div class="clno">p4 submit</div>
+      <div class="clmeta">step 7</div>
+    </div>
+    <div class="content">
+      <h2>Edit and submit</h2>
+      <p class="kicker">My Changes is your personal pending-changelist page,
+        backed by a server-side workspace created on demand. From any file
+        page, Edit or Delete opens the file into a changelist; here you can:</p>
+      <ul class="steps">
+        <li>edit text files in the web editor, or upload new/replacement files (binary-safe)</li>
+        <li>shelve and unshelve, or delete the shelf</li>
+        <li>revert single files or the whole changelist</li>
+        <li>submit — behind a confirmation that lists exactly what will land</li>
+      </ul>
+      <p class="kicker" style="margin-top:14px">You can only touch your own
+        p4-web changelists, and every write is recorded in an audit log.</p>
+      <figure class="shot">
+        <img src="./assets/guide-my.png" alt="My Changes detail page with description editor, file list with actions, and submit/shelve buttons" width="1180" height="780" loading="lazy">
+        <figcaption>My Changes — web editor, upload, shelve, submit</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <footer>
+    <span><a href="./">p4-web</a> — the whole depot, in a browser tab.</span>
+    <span><a href="https://github.com/neoocean/p4-web">GitHub</a> · <a href="./changes.html">Changes</a> · 2026</span>
+  </footer>
+
+</div>
+</body>
+</html>

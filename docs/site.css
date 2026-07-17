@@ -1,0 +1,246 @@
+/* Shared styles for p4-web docs subpages (changes.html, guide.html).
+   Same design system as the landing page (index.html keeps its own inline
+   copy so it stays a single self-contained file). */
+
+:root {
+  --bg: #F7F8F5;
+  --panel: #FFFFFF;
+  --panel-deep: #10151B;
+  --panel-deep-ink: #D7DEE6;
+  --ink: #1C2128;
+  --muted: #5B6572;
+  --faint: #8A948E;
+  --line: #DDE3DC;
+  --accent: #256E45;
+  --accent-ink: #FFFFFF;
+  --chip-bg: #EDF1EC;
+  --shadow: 0 1px 2px rgba(28,33,40,.06), 0 8px 24px rgba(28,33,40,.05);
+  --mono: "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --sans: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12161B;
+    --panel: #181E25;
+    --panel-deep: #0C1015;
+    --panel-deep-ink: #C9D2DB;
+    --ink: #E6EAEE;
+    --muted: #9AA6B2;
+    --faint: #6C7883;
+    --line: #29323C;
+    --accent: #52B383;
+    --accent-ink: #0C1512;
+    --chip-bg: #1F2831;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="light"] {
+  --bg: #F7F8F5;
+  --panel: #FFFFFF;
+  --panel-deep: #10151B;
+  --panel-deep-ink: #D7DEE6;
+  --ink: #1C2128;
+  --muted: #5B6572;
+  --faint: #8A948E;
+  --line: #DDE3DC;
+  --accent: #256E45;
+  --accent-ink: #FFFFFF;
+  --chip-bg: #EDF1EC;
+  --shadow: 0 1px 2px rgba(28,33,40,.06), 0 8px 24px rgba(28,33,40,.05);
+}
+:root[data-theme="dark"] {
+  --bg: #12161B;
+  --panel: #181E25;
+  --panel-deep: #0C1015;
+  --panel-deep-ink: #C9D2DB;
+  --ink: #E6EAEE;
+  --muted: #9AA6B2;
+  --faint: #6C7883;
+  --line: #29323C;
+  --accent: #52B383;
+  --accent-ink: #0C1512;
+  --chip-bg: #1F2831;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { transition: none !important; animation: none !important; }
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+code, pre, .mono { font-family: var(--mono); }
+
+.page { max-width: 980px; margin: 0 auto; padding: 0 24px 96px; }
+
+/* ---- site nav ---- */
+.sitenav {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 22px 0 0;
+  font-family: var(--mono);
+  font-size: 14px;
+}
+.sitenav .brand { font-weight: 700; color: var(--ink); text-decoration: none; }
+.sitenav-links { display: flex; gap: 18px; flex-wrap: wrap; }
+.sitenav-links a { color: var(--muted); text-decoration: none; }
+.sitenav-links a:hover { color: var(--accent); }
+.sitenav-links a[aria-current="page"] { color: var(--accent); font-weight: 600; }
+
+/* ---- page head ---- */
+.doc-head { padding-top: 56px; }
+.doc-head h1 {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: clamp(28px, 4.6vw, 40px);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  margin: 0 0 12px;
+  text-wrap: balance;
+}
+.doc-head .lede { font-size: 17px; color: var(--muted); max-width: 62ch; margin: 0; }
+.doc-head .lede code { background: var(--chip-bg); padding: 1px 6px; border-radius: 4px; font-size: 0.87em; }
+
+/* ---- section scaffold: gutter + content, like a file view ---- */
+section.cl {
+  display: grid;
+  grid-template-columns: 118px 1fr;
+  gap: 28px;
+  margin-top: 72px;
+}
+.gutter {
+  border-right: 2px solid var(--line);
+  padding-right: 18px;
+  text-align: right;
+}
+.gutter .clno {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.gutter .clmeta {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--faint);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+.content { min-width: 0; }
+h2 {
+  font-family: var(--mono);
+  font-size: 22px;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+  text-wrap: balance;
+}
+.kicker { color: var(--muted); max-width: 64ch; margin: 0 0 20px; }
+.content p { max-width: 64ch; }
+.content p code, .kicker code, .chg-title code {
+  background: var(--chip-bg);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.87em;
+}
+@media (max-width: 720px) {
+  section.cl { grid-template-columns: 1fr; gap: 10px; margin-top: 56px; }
+  .gutter {
+    border-right: 0;
+    border-bottom: 2px solid var(--line);
+    padding: 0 0 8px;
+    text-align: left;
+    display: flex;
+    gap: 12px;
+    align-items: baseline;
+  }
+  .gutter .clmeta { margin-top: 0; }
+}
+
+/* ---- changelog rows ---- */
+ul.chg-list { list-style: none; margin: 0; padding: 0; }
+ul.chg-list li {
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+ul.chg-list li:last-child { border-bottom: 0; }
+.chg-cl {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  flex: 0 0 3.4em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.chg-title { font-size: 15px; }
+.chg-note { color: var(--muted); }
+
+/* ---- guide figures ---- */
+figure.shot {
+  margin: 18px 0 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  background: var(--panel);
+}
+figure.shot img { display: block; width: 100%; height: auto; }
+figure.shot figcaption {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  padding: 9px 14px;
+  border-top: 1px solid var(--line);
+}
+.demo-note {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--chip-bg);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 22px 0 0;
+  max-width: 64ch;
+}
+
+/* ---- steps list inside guide sections ---- */
+ul.steps { list-style: none; margin: 0; padding: 0; max-width: 64ch; }
+ul.steps li { padding-left: 22px; position: relative; margin-bottom: 8px; font-size: 15px; }
+ul.steps li::before {
+  content: "▸";
+  position: absolute; left: 2px; top: 0;
+  color: var(--accent);
+  font-size: 13px;
+}
+
+/* ---- footer ---- */
+footer {
+  margin-top: 96px;
+  border-top: 2px solid var(--line);
+  padding-top: 26px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--muted);
+}

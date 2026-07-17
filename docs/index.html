@@ -116,6 +116,21 @@
     padding: 0 24px 96px;
   }
 
+  /* ---- site nav ---- */
+  .sitenav {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    padding: 22px 0 0;
+    font-family: var(--mono);
+    font-size: 14px;
+  }
+  .sitenav .brand { font-weight: 700; color: var(--ink); text-decoration: none; }
+  .sitenav-links { display: flex; gap: 18px; flex-wrap: wrap; }
+  .sitenav-links a { color: var(--muted); text-decoration: none; }
+  .sitenav-links a:hover { color: var(--accent); }
+
   /* ---- section scaffold: CL gutter + content, like a file view ---- */
   section.cl {
     display: grid;
@@ -440,6 +455,15 @@
 <body>
 
 <div class="page">
+
+  <nav class="sitenav">
+    <a class="brand" href="./">p4-web</a>
+    <span class="sitenav-links">
+      <a href="./changes.html">Changes</a>
+      <a href="./guide.html">Guide</a>
+      <a href="https://github.com/neoocean/p4-web">GitHub&nbsp;↗</a>
+    </span>
+  </nav>
 
   <header class="hero">
     <div class="hero-gutter" aria-hidden="true">
