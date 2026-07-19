@@ -639,7 +639,8 @@
     <div class="content">
       <h2>셸이 있는 곳이면 어디든 배포</h2>
       <p class="kicker">세션은 SQLite(<code>data/sessions.db</code>)에 보존되어
-        재시작해도 로그아웃되지 않습니다. <code>ssl:</code> 서버는
+        재시작해도 로그아웃되지 않으며, Perforce 티켓이 유효한 동안 그대로
+        유지됩니다. <code>ssl:</code> 서버는
         <code>P4WEB_AUTO_TRUST=1</code>로 첫 접속 시 지문을 수락합니다.</p>
       <div class="deploy">
         <div class="card"><h3>Docker</h3><p>이미지에 p4 CLI가 포함되어 있고, 세션과 SSL 신뢰 파일은 <code>/data</code> 볼륨에 저장됩니다.</p><code class="one">docker compose up -d</code></div>

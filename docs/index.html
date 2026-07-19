@@ -640,7 +640,8 @@
     <div class="content">
       <h2>Deploy anywhere a shell runs</h2>
       <p class="kicker">Sessions persist in SQLite (<code>data/sessions.db</code>), so restarts
-        don’t log anyone out. For <code>ssl:</code> servers, <code>P4WEB_AUTO_TRUST=1</code> accepts
+        don’t log anyone out, and each one lasts exactly as long as its Perforce
+        ticket. For <code>ssl:</code> servers, <code>P4WEB_AUTO_TRUST=1</code> accepts
         the fingerprint on first connect.</p>
       <div class="deploy">
         <div class="card"><h3>Docker</h3><p>The image bundles the p4 CLI; sessions and SSL trust live on the <code>/data</code> volume.</p><code class="one">docker compose up -d</code></div>
