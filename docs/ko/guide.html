@@ -56,7 +56,8 @@
 
   <header class="doc-head">
     <h1>가이드</h1>
-    <p class="lede">로그인부터 서브밋까지, p4-web 한 바퀴 둘러보기. 아직 설치
+    <p class="lede">로그인부터 서브밋까지, 그리고 그 너머의 검색과 메타데이터
+      브라우저까지 — p4-web 한 바퀴 둘러보기. 아직 설치
       전이라면 <a href="./#quickstart">퀵스타트</a>로 1분 안에 서버를 띄울 수
       있습니다.</p>
     <p class="demo-note">모든 스크린샷은 가상의 데모 디포(<code>//rocket</code>)와
@@ -175,10 +176,30 @@
     </div>
   </section>
 
+  <section class="cl" id="change">
+    <div class="gutter">
+      <div class="clno">p4 describe</div>
+      <div class="clmeta">7단계</div>
+    </div>
+    <div class="content">
+      <h2>체인지리스트 읽기</h2>
+      <p class="kicker">체인지 번호를 열면 전체 설명, 연결된 잡, 건드린 파일이
+        모두 나옵니다. 편집된 파일마다 삼각형 토글이 있어 페이지를 떠나지 않고
+        디프를 unified 또는 side-by-side로 펼칠 수 있고, 펜딩 체인지리스트는
+        셸브된 파일을 베이스 리비전과 비교해 보여줍니다. 아래쪽에는 체인지리스트
+        자체에 달린 코멘트 스레드가 있습니다 — 마크다운 본문, 1단계 답글,
+        정리되면 resolve.</p>
+      <figure class="shot">
+        <img src="../assets/guide-change.png" alt="설명, 디프가 인라인으로 펼쳐진 파일 목록, 코멘트 스레드가 있는 체인지 상세 페이지" width="1180" height="1230" loading="lazy">
+        <figcaption>체인지 상세 — 인라인 디프와 코멘트 스레드</figcaption>
+      </figure>
+    </div>
+  </section>
+
   <section class="cl" id="write">
     <div class="gutter">
       <div class="clno">p4 submit</div>
-      <div class="clmeta">7단계</div>
+      <div class="clmeta">8단계</div>
     </div>
     <div class="content">
       <h2>편집과 서브밋</h2>
@@ -197,6 +218,44 @@
       <figure class="shot">
         <img src="../assets/guide-my.png" alt="설명 편집기, 액션이 있는 파일 목록, 서브밋·셸브 버튼이 있는 My Changes 상세 페이지" width="1180" height="780" loading="lazy">
         <figcaption>My Changes — 웹 에디터, 업로드, 셸브, 서브밋</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="cl" id="search">
+    <div class="gutter">
+      <div class="clno">p4 grep</div>
+      <div class="clmeta">9단계</div>
+    </div>
+    <div class="content">
+      <h2>디포 검색</h2>
+      <p class="kicker">상단 바의 검색 상자는 두 가지로 동작합니다.
+        <strong>Files</strong>는 모든 디포에서 경로 부분 문자열을 찾습니다(와일드카드
+        <span class="mono">*</span>, <span class="mono">...</span> 사용 가능).
+        <strong>Content</strong>는 파일 내용을 grep하는데, 서버 전체를 grep하면
+        서버가 녹아나므로 범위 경로가 필요합니다. 내용 검색 결과는 파일별로 묶여
+        돌아오고, 각 줄은 뷰어의 해당 줄로 바로 연결됩니다.</p>
+      <figure class="shot">
+        <img src="../assets/guide-search.png" alt="파일별로 묶인 내용 검색 결과, 각 줄이 파일 뷰어로 연결됨" width="1180" height="426" loading="lazy">
+        <figcaption>Search — 파일별로 묶인 내용 검색 결과</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="cl" id="more">
+    <div class="gutter">
+      <div class="clno">p4 labels …</div>
+      <div class="clmeta">10단계</div>
+    </div>
+    <div class="content">
+      <h2>나머지는 More 메뉴에</h2>
+      <p class="kicker">태그된 파일까지 보이는 레이블, 닫은 픽스가 함께 나오는 잡,
+        브랜치 매핑, 부모가 표시되는 스트림, 사용자 &amp; 그룹 — P4V의 메타데이터
+        브라우저들이 메뉴 하나 아래에 있습니다. 폴더 디프도 여기 있습니다: 디포 경로
+        두 개를 지정하면 한쪽에만 있는 것과 양쪽에서 다른 것을 정리해 줍니다.</p>
+      <figure class="shot">
+        <img src="../assets/guide-more.png" alt="Labels·Jobs·Branches·Streams·Users and Groups·Folder diff가 있는 More 메뉴가 열린 잡 브라우저" width="1180" height="320" loading="lazy">
+        <figcaption>More — 메타데이터 브라우저, 여기서는 잡 목록 위에서</figcaption>
       </figure>
     </div>
   </section>

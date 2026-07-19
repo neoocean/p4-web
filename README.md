@@ -98,9 +98,12 @@ file live on the `/data` volume:
 docker compose up -d        # edit P4WEB_P4PORT in docker-compose.yml first
 ```
 
-For `ssl:` servers set `P4WEB_AUTO_TRUST=1` to accept the fingerprint
-on first connect (trust-on-first-use), or run `p4 trust` against the
-volume yourself.
+For `ssl:` servers the container entrypoint handles trust: set
+`P4WEB_P4FINGERPRINT` to pin the exact fingerprint (preferred), or
+`P4WEB_AUTO_TRUST=1` to accept whatever answers on first connect
+(trust-on-first-use — fine on a LAN, not against a MITM). Both are
+read only by the entrypoint; outside Docker, run `p4 trust` yourself
+once.
 
 **macOS (launchd)** — edit the paths in
 `deploy/com.p4web.launchd.plist`, copy it to `~/Library/LaunchAgents/`

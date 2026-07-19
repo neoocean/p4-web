@@ -56,7 +56,8 @@
 
   <header class="doc-head">
     <h1>Guide</h1>
-    <p class="lede">A tour of p4-web, from login to submit. If you haven't
+    <p class="lede">A tour of p4-web, from login to submit — and the corners
+      past it: search, and the metadata browsers. If you haven't
       installed it yet, the <a href="./#quickstart">quickstart</a> gets a
       server running in under a minute.</p>
     <p class="demo-note">All screenshots show a demo depot (<code>//rocket</code>)
@@ -177,10 +178,31 @@
     </div>
   </section>
 
+  <section class="cl" id="change">
+    <div class="gutter">
+      <div class="clno">p4 describe</div>
+      <div class="clmeta">step 7</div>
+    </div>
+    <div class="content">
+      <h2>Read a changelist</h2>
+      <p class="kicker">Open any change number to get the full description,
+        its jobs, and every file it touched. Each edited file has a
+        disclosure triangle that expands the diff inline — unified or
+        side-by-side, without leaving the page — and pending changelists
+        show their shelved files against the base revision. At the bottom,
+        a comment thread hangs off the changelist itself: markdown bodies,
+        one level of replies, resolve when the point is settled.</p>
+      <figure class="shot">
+        <img src="./assets/guide-change.png" alt="Change detail page: description, file list with one diff expanded inline, and a comment thread" width="1180" height="1230" loading="lazy">
+        <figcaption>Change detail — inline diffs and a comment thread</figcaption>
+      </figure>
+    </div>
+  </section>
+
   <section class="cl" id="write">
     <div class="gutter">
       <div class="clno">p4 submit</div>
-      <div class="clmeta">step 7</div>
+      <div class="clmeta">step 8</div>
     </div>
     <div class="content">
       <h2>Edit and submit</h2>
@@ -199,6 +221,46 @@
       <figure class="shot">
         <img src="./assets/guide-my.png" alt="My Changes detail page with description editor, file list with actions, and submit/shelve buttons" width="1180" height="780" loading="lazy">
         <figcaption>My Changes — web editor, upload, shelve, submit</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="cl" id="search">
+    <div class="gutter">
+      <div class="clno">p4 grep</div>
+      <div class="clmeta">step 9</div>
+    </div>
+    <div class="content">
+      <h2>Search the depot</h2>
+      <p class="kicker">The box in the top bar searches two ways. <strong>Files</strong>
+        matches substrings of depot paths across every depot (wildcards
+        <span class="mono">*</span> and <span class="mono">...</span> allowed).
+        <strong>Content</strong> greps inside the files themselves — it needs a
+        scope path, because grepping an entire server is a good way to melt it.
+        Content matches come back grouped by file, and every line links straight
+        to that line in the viewer.</p>
+      <figure class="shot">
+        <img src="./assets/guide-search.png" alt="Content search results grouped by file, each line linking into the file viewer" width="1180" height="426" loading="lazy">
+        <figcaption>Search — content matches grouped by file</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="cl" id="more">
+    <div class="gutter">
+      <div class="clno">p4 labels …</div>
+      <div class="clmeta">step 10</div>
+    </div>
+    <div class="content">
+      <h2>Everything else lives under More</h2>
+      <p class="kicker">Labels with their tagged files, jobs with the fixes that
+        closed them, branch mappings, streams with their parents, and users
+        &amp; groups — the P4V metadata browsers, one menu away. Folder diff
+        lives here too: point it at two depot paths and it reports what only
+        exists on one side and what differs on both.</p>
+      <figure class="shot">
+        <img src="./assets/guide-more.png" alt="Jobs browser with the More menu open, listing Labels, Jobs, Branches, Streams, Users and Groups, and Folder diff" width="1180" height="320" loading="lazy">
+        <figcaption>More — metadata browsers, here over the jobs list</figcaption>
       </figure>
     </div>
   </section>
