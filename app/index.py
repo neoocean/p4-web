@@ -247,11 +247,12 @@ def refresh(user, ticket, backfill=True):
 
 
 def _status(conn):
+    # Only `changes` is counted. Counting change_files means scanning
+    # millions of rows — seconds on a cold cache — and the UI never
+    # shows the number, so it was pure latency on every status call.
     total = conn.execute("SELECT COUNT(*) FROM changes").fetchone()[0]
-    files = conn.execute("SELECT COUNT(*) FROM change_files").fetchone()[0]
     return {
         "changes": int(total),
-        "files": int(files),
         "newest": int(_get_meta(conn, "newest_indexed", "0") or 0),
         "oldest": int(_get_meta(conn, "oldest_indexed", "0") or 0),
         "updated": int(_get_meta(conn, "updated", "0") or 0),

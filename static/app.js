@@ -1363,7 +1363,15 @@ function ensureUserDatalist() {
   return userDatalistPromise;
 }
 
-function indexBarHtml(s, building) {
+function indexBarHtml(s, building, loading) {
+  // `loading`: the shell is up but the index status hasn't answered yet.
+  // Say so rather than flashing "Indexed 0 changes".
+  if (loading && !s) {
+    return `<div class="index-bar">
+      <span class="muted">&#9889; Checking index…</span>
+      <span class="index-bar-actions"></span>
+    </div>`;
+  }
   const built = s && s.changes > 0;
   const when = built && s.updated ? fmtTime(s.updated) : "—";
   const range = built ? ` (#${s.oldest}–#${s.newest})` : "";
@@ -1503,52 +1511,17 @@ registerRoute(/^#\/changes/, async (view, m) => {
   const dateFrom = params.get("from") || "";
   const dateTo = params.get("to") || "";
 
-  // Engine is chosen automatically — there is no user-facing toggle:
-  //   * pending status, or a path-prefix filter without a filename, must
-  //     use live p4 (the index is submitted-only and has no path search);
-  //   * everything else prefers the per-user index, which spans all
-  //     indexed history (live description search only covers one page)
-  //     and adds filename search. A filename filter forces the index.
-  //   * if the index isn't built yet we fall back to live and warm it in
-  //     the background, upgrading to the index on the next render.
+  // Pending status and path-prefix filters can only be answered live —
+  // see the engine notes on the listing load below.
   const forceLive = status === "pending" || (Boolean(path) && !file);
-  spinner(view);
 
-  let data;
-  let idxStatus = null;
-  let engine;
-  let liveQ = null;
-  try {
-    if (!forceLive) idxStatus = await api("/api/index/status");
-    const indexReady = Boolean(idxStatus && idxStatus.changes > 0);
-    if (!forceLive && indexReady) {
-      engine = "index";
-      const iq = new URLSearchParams({ max: "200" });
-      if (text) iq.set("q", text);
-      if (file) iq.set("file", file);
-      if (user) iq.set("user", user);
-      if (dateFrom) iq.set("date_from", dateFrom);
-      if (dateTo) iq.set("date_to", dateTo);
-      data = await api(`/api/index/search?${iq}`);
-    } else {
-      engine = forceLive ? "live" : "warming";  // warming = index not ready, live fallback
-      liveQ = new URLSearchParams({ status, max: "100" });
-      if (user) liveQ.set("user", user);
-      if (path) liveQ.set("path", path);
-      if (text) liveQ.set("text", text);
-      if (dateFrom) liveQ.set("date_from", dateFrom);
-      if (dateTo) liveQ.set("date_to", dateTo);
-      data = await api(`/api/changes?${liveQ}`);
-    }
-  } catch (err) {
-    if (err.status !== 401) renderError(view, err);
-    return;
-  }
-
+  // The page paints before anything is fetched: filters and the index
+  // bar are pure markup, and the listing fills in underneath. Waiting on
+  // the index (its status query scans a table that grows with history,
+  // and a running refresh can hold it) used to keep the whole view on a
+  // spinner — the user is here to search, so give them the form at once.
   const hasDates = Boolean(dateFrom || dateTo);
   const hasFilters = Boolean(user || path || file || text || hasDates || status !== "submitted");
-  const showBar = engine === "index" || engine === "warming";
-  if (idxStatus) _lastIdxStatus = idxStatus;
   view.innerHTML = `
     <div class="pane">
       <button type="button" id="chg-ftoggle" class="filters-toggle">
@@ -1569,18 +1542,13 @@ registerRoute(/^#\/changes/, async (view, m) => {
         <label>To <input name="to" value="${esc(dateTo)}" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" title="YYYY-MM-DD" size="11"></label>
         <button type="submit">Filter</button>
       </form>
-      ${showBar ? indexBarHtml(idxStatus, engine === "warming") : ""}
+      ${forceLive ? "" : indexBarHtml(_lastIdxStatus, false, !_lastIdxStatus)}
       <table class="listing">
         <thead><tr><th>Change</th><th>Date</th><th class="hide-sm">User</th><th>Description</th></tr></thead>
-        <tbody id="chg-rows">${data.changes.map(changeRow).join("") ||
-          '<tr><td colspan="4" class="muted">No changes found</td></tr>'}</tbody>
+        <tbody id="chg-rows"><tr><td colspan="4" class="muted">Loading…</td></tr></tbody>
       </table>
-      ${liveQ && data.rawCount >= data.pageSize && status === "submitted" && !hasDates
-        ? '<button id="chg-more" class="load-more">Load more</button>' : ""}
+      <div id="chg-more-slot"></div>
     </div>`;
-
-  // Keep the index warm/current in the background (no-op when fresh).
-  if (!forceLive) warmIndex(idxStatus);
 
   $("#chg-ftoggle", view).addEventListener("click", () => {
     $("#chg-filter", view).classList.toggle("open");
@@ -1602,8 +1570,79 @@ registerRoute(/^#\/changes/, async (view, m) => {
 
   bindIndexBar(view);
 
-  const more = $("#chg-more", view);
-  if (more && liveQ) {
+  // ---- listing, loaded after the shell is on screen ----
+  //
+  // Engine is chosen automatically — there is no user-facing toggle:
+  //   * pending status, or a path-prefix filter without a filename, must
+  //     use live p4 (the index is submitted-only and has no path search);
+  //   * everything else prefers the per-user index, which spans all
+  //     indexed history (live description search only covers one page)
+  //     and adds filename search. A filename filter forces the index.
+  //   * if the index isn't built yet we fall back to live and warm it in
+  //     the background, upgrading to the index on the next render.
+  //
+  // The search and the status query run side by side, and the rows do
+  // not wait for status: the search itself answers in milliseconds while
+  // status counts rows, so the listing lands first and the bar catches
+  // up. Status is only awaited when the search comes back empty, since
+  // that is the one case where "no matches" and "no index yet" look the
+  // same from here.
+  const iq = new URLSearchParams({ max: "200" });
+  if (text) iq.set("q", text);
+  if (file) iq.set("file", file);
+  if (user) iq.set("user", user);
+  if (dateFrom) iq.set("date_from", dateFrom);
+  if (dateTo) iq.set("date_to", dateTo);
+  const statusP = forceLive ? null : api("/api/index/status");
+  const indexP = forceLive ? null : api(`/api/index/search?${iq}`);
+  if (statusP) statusP.catch(() => {});  // consumed below; never unhandled
+
+  let data = null;
+  let liveQ = null;
+  try {
+    if (indexP) {
+      data = await indexP;
+      if (!data.changes.length && !(await statusP.catch(() => null))?.changes) {
+        data = null;  // empty because the index isn't built — use live p4
+      }
+    }
+    if (!data) {
+      liveQ = new URLSearchParams({ status, max: "100" });
+      if (user) liveQ.set("user", user);
+      if (path) liveQ.set("path", path);
+      if (text) liveQ.set("text", text);
+      if (dateFrom) liveQ.set("date_from", dateFrom);
+      if (dateTo) liveQ.set("date_to", dateTo);
+      data = await api(`/api/changes?${liveQ}`);
+    }
+  } catch (err) {
+    if (err.status !== 401) renderError(view, err);
+    return;
+  }
+  if (!view.isConnected) return;  // navigated away while the query ran
+
+  $("#chg-rows", view).innerHTML = data.changes.map(changeRow).join("") ||
+    '<tr><td colspan="4" class="muted">No changes found</td></tr>';
+
+  // The index bar and the background warm-up trail the listing.
+  if (statusP) {
+    statusP.then((s) => {
+      if (!view.isConnected) return;
+      _lastIdxStatus = s;
+      const bar = $(".index-bar", view);
+      if (bar) {
+        // "warming" = no index yet, so the live fallback is showing.
+        bar.outerHTML = indexBarHtml(s, !(s && s.changes > 0), false);
+        bindIndexBar(view);
+      }
+      warmIndex(s);  // keep the index current in the background (no-op when fresh)
+    }).catch(() => {});
+  }
+
+  if (liveQ && data.rawCount >= data.pageSize && status === "submitted" && !hasDates) {
+    $("#chg-more-slot", view).innerHTML =
+      '<button id="chg-more" class="load-more">Load more</button>';
+    const more = $("#chg-more", view);
     let oldest = data.oldest || 0;
     more.addEventListener("click", async () => {
       more.disabled = true;
