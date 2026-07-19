@@ -547,7 +547,7 @@
       <p class="kicker">Each card is backed by the real <code>p4</code> command underneath —
         the app is a thin, honest wrapper, so results match your CLI exactly.</p>
       <div class="grid">
-        <div class="card"><span class="cmd">p4 dirs</span><h3>Depot browser</h3><p>Breadcrumbs, sortable listings, and a P4V-style lazy tree sidebar synced to deep links.</p></div>
+        <div class="card"><span class="cmd">p4 dirs</span><h3>Depot browser</h3><p>Breadcrumbs, sortable listings, and a P4V-style lazy tree sidebar synced to deep links. Star a path and it lands on your home dashboard with its recent changes.</p></div>
         <div class="card"><span class="cmd">p4 print</span><h3>File viewer</h3><p>Syntax highlighting (vendored, offline), line-number gutter, revision dropdown, line permalinks.</p></div>
         <div class="card"><span class="cmd">p4 filelog</span><h3>History &amp; graph</h3><p>Full history across renames and branches, plus an SVG revision graph with integration provenance.</p></div>
         <div class="card"><span class="cmd">p4 diff2</span><h3>Diff tools</h3><p>Unified and side-by-side everywhere: arbitrary revision pairs, folder diffs, shelved-vs-base.</p></div>
@@ -573,7 +573,8 @@
         <div class="pane">
           <h3>What you can do</h3>
           <ul class="checks">
-            <li>Create pending changelists and edit text files in a web editor</li>
+            <li>Create pending changelists, rewrite their description, or delete them</li>
+            <li>Edit text files in a web editor</li>
             <li>Upload new or replacement files, binary-safe</li>
             <li>Mark for delete, revert, shelve / unshelve</li>
             <li>Submit behind a confirmation dialog showing the full file list</li>
@@ -601,6 +602,7 @@
       <h2>Running in under a minute</h2>
       <p class="kicker">One script creates the venv, installs three pinned dependencies, and serves.</p>
       <pre class="term"><span class="p">$</span> git clone https://github.com/neoocean/p4-web.git &amp;&amp; cd p4-web
+<span class="p">$</span> export P4WEB_P4PORT=ssl:perforce.example.com:1666  <span class="c"># or inherit P4PORT</span>
 <span class="p">$</span> ./run.sh
 <span class="c"># equivalent to:</span>
 <span class="p">$</span> python3 -m venv .venv
@@ -641,11 +643,13 @@
       <h2>Deploy anywhere a shell runs</h2>
       <p class="kicker">Sessions persist in SQLite (<code>data/sessions.db</code>), so restarts
         don’t log anyone out, and each one lasts exactly as long as its Perforce
-        ticket. For <code>ssl:</code> servers, <code>P4WEB_AUTO_TRUST=1</code> accepts
-        the fingerprint on first connect.</p>
+        ticket. For <code>ssl:</code> servers the container entrypoint trusts the
+        fingerprint for you — pin it with <code>P4WEB_P4FINGERPRINT</code>, or fall
+        back to <code>P4WEB_AUTO_TRUST=1</code> on a trusted network; outside Docker,
+        run <code>p4 trust</code> once yourself.</p>
       <div class="deploy">
         <div class="card"><h3>Docker</h3><p>The image bundles the p4 CLI; sessions and SSL trust live on the <code>/data</code> volume.</p><code class="one">docker compose up -d</code></div>
-        <div class="card"><h3>macOS · launchd</h3><p>Always-on local service via a LaunchAgent plist — pairs well with a tailnet.</p><code class="one">launchctl load com.p4web.plist</code></div>
+        <div class="card"><h3>macOS · launchd</h3><p>Always-on local service: edit the paths in <code>deploy/com.p4web.launchd.plist</code>, copy it to <code>~/Library/LaunchAgents/</code> — pairs well with a tailnet.</p><code class="one">launchctl load ~/Library/LaunchAgents/com.p4web.plist</code></div>
         <div class="card"><h3>Linux · systemd</h3><p>A standard unit file; edit paths, enable, done.</p><code class="one">systemctl enable --now p4web</code></div>
       </div>
     </div>
@@ -663,7 +667,8 @@
                changes, comments, workspace write ops
   p4.py        p4 CLI wrapper: -G marshal parsing, path escaping,
                command allowlist, error → HTTP mapping
-  sessions.py  cookie sid → {user, ticket}, SQLite-backed
+  sessions.py  cookie sid → {user, ticket}, plus favorites and
+               comment threads — all SQLite-backed
   index.py     per-user changelist search index (respects protections)
   workspace.py per-user p4web-&lt;user&gt; workspaces backing the write ops
 static/
@@ -679,7 +684,7 @@ static/
 
   <footer>
     <span>p4-web — built in the open, one numbered changelist at a time.</span>
-    <span><a href="https://github.com/neoocean/p4-web">GitHub</a> · <a href="https://github.com/neoocean/p4-web/archive/refs/heads/main.zip">source .zip</a> · CL 65134 → 65326 · 2026</span>
+    <span><a href="https://github.com/neoocean/p4-web">GitHub</a> · <a href="https://github.com/neoocean/p4-web/archive/refs/heads/main.zip">source .zip</a> · CL 65134 → 65719 · 2026</span>
   </footer>
 
 </div>

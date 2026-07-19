@@ -546,7 +546,7 @@
       <p class="kicker">카드마다 실제로 실행되는 <code>p4</code> 명령이 붙어 있습니다 —
         앱은 얇고 정직한 래퍼라서 결과가 CLI와 정확히 일치합니다.</p>
       <div class="grid">
-        <div class="card"><span class="cmd">p4 dirs</span><h3>디포 브라우저</h3><p>브레드크럼, 정렬 가능한 목록, 딥링크와 동기화되는 P4V 스타일 지연 로딩 트리 사이드바.</p></div>
+        <div class="card"><span class="cmd">p4 dirs</span><h3>디포 브라우저</h3><p>브레드크럼, 정렬 가능한 목록, 딥링크와 동기화되는 P4V 스타일 지연 로딩 트리 사이드바. 경로에 별을 달면 홈 대시보드에 최근 변경과 함께 올라옵니다.</p></div>
         <div class="card"><span class="cmd">p4 print</span><h3>파일 뷰어</h3><p>신택스 하이라이팅(번들 포함, 오프라인 동작), 줄 번호 거터, 리비전 드롭다운, 줄 퍼머링크.</p></div>
         <div class="card"><span class="cmd">p4 filelog</span><h3>히스토리 &amp; 그래프</h3><p>이름 변경·브랜치를 아우르는 전체 히스토리, 통합 이력을 담은 SVG 리비전 그래프.</p></div>
         <div class="card"><span class="cmd">p4 diff2</span><h3>디프 도구</h3><p>어디서나 unified / side-by-side: 임의 리비전 쌍, 폴더 디프, 셸브-대-베이스 비교.</p></div>
@@ -572,7 +572,8 @@
         <div class="pane">
           <h3>할 수 있는 일</h3>
           <ul class="checks">
-            <li>펜딩 체인지리스트를 만들고 웹 에디터에서 텍스트 파일 편집</li>
+            <li>펜딩 체인지리스트 생성, 설명 수정, 또는 삭제</li>
+            <li>웹 에디터에서 텍스트 파일 편집</li>
             <li>새 파일·교체 파일 업로드, 바이너리 안전</li>
             <li>삭제 마크, 리버트, 셸브 / 언셸브</li>
             <li>전체 파일 목록을 보여주는 확인 대화상자를 거쳐 서브밋</li>
@@ -600,6 +601,7 @@
       <h2>1분 안에 실행</h2>
       <p class="kicker">스크립트 하나가 venv를 만들고 버전이 고정된 의존성 세 개를 설치한 뒤 서빙합니다.</p>
       <pre class="term"><span class="p">$</span> git clone https://github.com/neoocean/p4-web.git &amp;&amp; cd p4-web
+<span class="p">$</span> export P4WEB_P4PORT=ssl:perforce.example.com:1666  <span class="c"># 또는 P4PORT 상속</span>
 <span class="p">$</span> ./run.sh
 <span class="c"># 다음과 동일:</span>
 <span class="p">$</span> python3 -m venv .venv
@@ -640,11 +642,13 @@
       <h2>셸이 있는 곳이면 어디든 배포</h2>
       <p class="kicker">세션은 SQLite(<code>data/sessions.db</code>)에 보존되어
         재시작해도 로그아웃되지 않으며, Perforce 티켓이 유효한 동안 그대로
-        유지됩니다. <code>ssl:</code> 서버는
-        <code>P4WEB_AUTO_TRUST=1</code>로 첫 접속 시 지문을 수락합니다.</p>
+        유지됩니다. <code>ssl:</code> 서버의 지문은 컨테이너 엔트리포인트가
+        처리합니다 — <code>P4WEB_P4FINGERPRINT</code>로 고정하거나, 신뢰할 수 있는
+        망에서는 <code>P4WEB_AUTO_TRUST=1</code>로 첫 접속 시 수락. Docker가 아니라면
+        <code>p4 trust</code>를 한 번 직접 실행하세요.</p>
       <div class="deploy">
         <div class="card"><h3>Docker</h3><p>이미지에 p4 CLI가 포함되어 있고, 세션과 SSL 신뢰 파일은 <code>/data</code> 볼륨에 저장됩니다.</p><code class="one">docker compose up -d</code></div>
-        <div class="card"><h3>macOS · launchd</h3><p>LaunchAgent plist로 상시 구동되는 로컬 서비스 — 테일넷과 궁합이 좋습니다.</p><code class="one">launchctl load com.p4web.plist</code></div>
+        <div class="card"><h3>macOS · launchd</h3><p>상시 구동되는 로컬 서비스: <code>deploy/com.p4web.launchd.plist</code>의 경로를 수정해 <code>~/Library/LaunchAgents/</code>로 복사 — 테일넷과 궁합이 좋습니다.</p><code class="one">launchctl load ~/Library/LaunchAgents/com.p4web.plist</code></div>
         <div class="card"><h3>Linux · systemd</h3><p>표준 유닛 파일; 경로를 수정하고 enable 하면 끝입니다.</p><code class="one">systemctl enable --now p4web</code></div>
       </div>
     </div>
@@ -662,7 +666,8 @@
                체인지, 코멘트, 워크스페이스 쓰기 작업
   p4.py        p4 CLI 래퍼: -G 마샬 파싱, 경로 이스케이프,
                명령 허용 목록, 오류 → HTTP 매핑
-  sessions.py  쿠키 sid → {user, ticket}, SQLite 저장
+  sessions.py  쿠키 sid → {user, ticket}, 즐겨찾기와 코멘트
+               스레드까지 — 모두 SQLite 저장
   index.py     사용자별 체인지리스트 검색 인덱스(프로텍션 준수)
   workspace.py 쓰기 작업을 뒷받침하는 사용자별 p4web-&lt;user&gt; 워크스페이스
 static/
@@ -678,7 +683,7 @@ static/
 
   <footer>
     <span>p4-web — 열린 곳에서, 번호 있는 체인지리스트로 하나씩.</span>
-    <span><a href="https://github.com/neoocean/p4-web">GitHub</a> · <a href="https://github.com/neoocean/p4-web/archive/refs/heads/main.zip">source .zip</a> · CL 65134 → 65326 · 2026</span>
+    <span><a href="https://github.com/neoocean/p4-web">GitHub</a> · <a href="https://github.com/neoocean/p4-web/archive/refs/heads/main.zip">source .zip</a> · CL 65134 → 65719 · 2026</span>
   </footer>
 
 </div>
