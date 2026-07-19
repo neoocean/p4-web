@@ -12,7 +12,15 @@ import sqlite3
 import time
 from pathlib import Path
 
-SESSION_TTL = 12 * 60 * 60  # seconds; p4 tickets usually outlive this
+# A session lives exactly as long as the Perforce ticket behind it, so
+# the UI never logs you out while P4V/the CLI would still let you work.
+# This value is only the fallback for when the server won't say how
+# long the ticket has left.
+SESSION_TTL = 12 * 60 * 60
+
+# Browsers clamp cookie lifetimes to 400 days, so asking for more just
+# gets silently trimmed; ask for exactly the cap instead.
+MAX_COOKIE_AGE = 400 * 24 * 60 * 60
 
 DATA_DIR = Path(
     os.environ.get("P4WEB_DATA")
@@ -34,6 +42,11 @@ def _conn():
             expires REAL NOT NULL
         )"""
     )
+    # Added when sessions started tracking the ticket's own expiry:
+    # when we last asked the server how long the ticket has left.
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(sessions)")}
+    if "checked" not in cols:
+        conn.execute("ALTER TABLE sessions ADD COLUMN checked REAL NOT NULL DEFAULT 0")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS favorites (
             user TEXT NOT NULL,
@@ -74,12 +87,17 @@ def _conn():
     return conn
 
 
-def create(user, ticket, owned_ticket=True):
+def create(user, ticket, owned_ticket=True, ttl=None):
+    """Start a session. `ttl` is the ticket's remaining lifetime in
+    seconds; None falls back to SESSION_TTL."""
     sid = secrets.token_urlsafe(32)
+    now = time.time()
     with _conn() as conn:
         conn.execute(
-            "INSERT INTO sessions (sid, user, ticket, owned_ticket, expires) VALUES (?, ?, ?, ?, ?)",
-            (sid, user, ticket, 1 if owned_ticket else 0, time.time() + SESSION_TTL),
+            "INSERT INTO sessions (sid, user, ticket, owned_ticket, expires, checked)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (sid, user, ticket, 1 if owned_ticket else 0,
+             now + (SESSION_TTL if ttl is None else ttl), now),
         )
         # Opportunistic cleanup keeps the file from growing forever.
         conn.execute("DELETE FROM sessions WHERE expires < ?", (time.time(),))
@@ -91,16 +109,33 @@ def get(sid):
         return None
     with _conn() as conn:
         row = conn.execute(
-            "SELECT user, ticket, owned_ticket, expires FROM sessions WHERE sid = ?",
+            "SELECT user, ticket, owned_ticket, expires, checked FROM sessions WHERE sid = ?",
             (sid,),
         ).fetchone()
         if row is None:
             return None
-        user, ticket, owned, expires = row
+        user, ticket, owned, expires, checked = row
         if expires < time.time():
             conn.execute("DELETE FROM sessions WHERE sid = ?", (sid,))
             return None
-    return {"user": user, "ticket": ticket, "owned_ticket": bool(owned), "expires": expires}
+    return {
+        "user": user, "ticket": ticket, "owned_ticket": bool(owned),
+        "expires": expires, "checked": checked,
+    }
+
+
+def refresh(sid, ttl=None):
+    """Record that the ticket was just re-checked, and (when `ttl` is
+    known) re-anchor the session to the ticket's current expiry."""
+    now = time.time()
+    with _conn() as conn:
+        if ttl is None:
+            conn.execute("UPDATE sessions SET checked = ? WHERE sid = ?", (now, sid))
+        else:
+            conn.execute(
+                "UPDATE sessions SET checked = ?, expires = ? WHERE sid = ?",
+                (now, now + ttl, sid),
+            )
 
 
 def destroy(sid):

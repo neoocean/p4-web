@@ -8,6 +8,7 @@ diff2) capture raw stdout. Credentials are passed per-call with
 
 import marshal
 import os
+import re
 import subprocess
 
 P4BIN = os.environ.get("P4WEB_P4BIN", "p4")
@@ -295,6 +296,42 @@ def login(user, secret):
     if not lines:
         raise P4AuthError("login succeeded but no ticket was returned")
     return lines[-1], True
+
+
+# "User bob ticket expires in 11 hours 59 minutes." — the unit list
+# varies with how much time is left, so parse whatever units appear.
+_TICKET_UNITS = {
+    "second": 1, "minute": 60, "hour": 3600,
+    "day": 86400, "week": 604800,
+}
+
+
+def ticket_seconds_left(user, ticket):
+    """How long `ticket` stays valid, per `p4 login -s`.
+
+    Returns the remaining seconds, or None when the server accepts the
+    ticket but words the answer in a way we can't parse (treat that as
+    "valid, unknown lifetime"). Raises P4AuthError once the ticket is
+    no longer good — expired here or invalidated by a `p4 logout`
+    somewhere else.
+    """
+    proc = subprocess.run(
+        _base_cmd(user, ticket) + ["login", "-s"],
+        capture_output=True, timeout=30, env=_env(),
+    )
+    out = (proc.stdout + proc.stderr).decode("utf-8", errors="replace").strip()
+    if proc.returncode != 0:
+        raise P4AuthError(out or "your Perforce ticket is no longer valid")
+    match = re.search(r"expires in (.+?)\.", out, re.I)
+    if not match:
+        return None
+    total = 0
+    parts = re.findall(
+        r"(\d+)\s*(week|day|hour|minute|second)s?", match.group(1), re.I
+    )
+    for amount, unit in parts:
+        total += int(amount) * _TICKET_UNITS[unit.lower()]
+    return total if parts else None
 
 
 def logout(user, ticket):

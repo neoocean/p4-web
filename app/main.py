@@ -29,10 +29,41 @@ STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 COOKIE_NAME = "p4web_session"
 
 
+# How often a live session re-asks Perforce how much longer its ticket
+# is good for. The session then tracks that expiry, so you stay logged
+# in for exactly as long as the ticket lasts — and get dropped promptly
+# once it's revoked elsewhere.
+TICKET_RECHECK = 15 * 60
+
+
+def _ticket_ttl(user, ticket):
+    """Remaining ticket lifetime in seconds, or None if unknown."""
+    try:
+        return p4.ticket_seconds_left(user, ticket)
+    except Exception:
+        return None
+
+
 def require_session(sid):
     session = sessions.get(sid)
     if session is None:
         raise HTTPException(status_code=401, detail="Not logged in")
+    if time.time() - session.get("checked", 0) >= TICKET_RECHECK:
+        try:
+            ttl = p4.ticket_seconds_left(session["user"], session["ticket"])
+        except p4.P4AuthError:
+            sessions.destroy(sid)
+            raise HTTPException(
+                status_code=401,
+                detail={"message": "Your Perforce ticket expired — please log in again.", "raw": ""},
+            )
+        except Exception:
+            # Server hiccup, not a bad ticket: keep the session and try
+            # again next window rather than re-running p4 every request.
+            sessions.refresh(sid)
+        else:
+            sessions.refresh(sid, ttl)
+            session = sessions.get(sid) or session
     return session
 
 
@@ -205,12 +236,20 @@ def login(body: LoginRequest, request: Request, response: Response):
         _, text = _friendly(str(e))
         raise HTTPException(status_code=401, detail={"message": text, "raw": str(e)})
     _login_attempts.pop(f"user:{user}", None)
-    sid = sessions.create(user, ticket, owned_ticket=owned)
+    ttl = _ticket_ttl(user, ticket)
+    sid = sessions.create(user, ticket, owned_ticket=owned, ttl=ttl)
+    _set_session_cookie(response, sid, ttl)
+    return {"user": user, "p4port": p4.P4PORT}
+
+
+def _set_session_cookie(response, sid, ttl):
+    """Cookie lifetime follows the ticket, so the browser keeps the
+    session across restarts for as long as Perforce would."""
+    age = sessions.SESSION_TTL if ttl is None else int(ttl)
     response.set_cookie(
         COOKIE_NAME, sid, httponly=True, samesite="lax",
-        max_age=sessions.SESSION_TTL, secure=SECURE_COOKIES,
+        max_age=min(age, sessions.MAX_COOKIE_AGE), secure=SECURE_COOKIES,
     )
-    return {"user": user, "p4port": p4.P4PORT}
 
 
 @app.post("/api/logout")
@@ -226,8 +265,14 @@ def logout(response: Response, p4web_session: str | None = Cookie(default=None))
 
 
 @app.get("/api/me")
-def me(p4web_session: str | None = Cookie(default=None)):
+def me(response: Response, p4web_session: str | None = Cookie(default=None)):
     session = require_session(p4web_session)
+    # Re-stamp the cookie on every page load: the ticket may have been
+    # extended since login, and a cookie capped at 400 days would
+    # otherwise lapse before a longer-lived ticket does.
+    _set_session_cookie(
+        response, p4web_session, max(session["expires"] - time.time(), 60)
+    )
     return {"user": session["user"], "p4port": p4.P4PORT}
 
 
