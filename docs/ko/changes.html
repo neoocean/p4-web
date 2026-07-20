@@ -61,6 +61,19 @@
       <a href="https://github.com/neoocean/p4-web">GitHub</a>에 미러링됩니다.</p>
   </header>
 
+  <section class="cl" id="d-2026-07-20">
+    <div class="gutter">
+      <div class="clno">2026-07-20</div>
+      <div class="clmeta">5일차</div>
+    </div>
+    <div class="content">
+      <h2>긴 문서도 이미지가 다 뜹니다</h2>
+      <ul class="chg-list">
+        <li><span class="chg-cl">66121</span><span class="chg-title">스크린샷이 100장 넘게 든 마크다운 파일도 전부 표시됨 — 이전에는 뒤쪽 이미지들이 조용히 실패했음 <span class="chg-note">(서버의 파일 디스크립터가 고갈된 것이 원인: HTTP/2에서는 브라우저가 이미지 요청을 한꺼번에 열고, 요청마다 <code>p4</code> 프로세스가 둘씩 뜬다. 이제 서버가 스스로 상한을 올리고 스트림을 몇 개씩 나눠 시작하며, 그래도 실패한 이미지는 페이지가 다시 요청한다.)</span></span></li>
+      </ul>
+    </div>
+  </section>
+
   <section class="cl" id="d-2026-07-19">
     <div class="gutter">
       <div class="clno">2026-07-19</div>

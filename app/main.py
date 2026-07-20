@@ -3,8 +3,10 @@
 import mimetypes
 import os
 import re
+import resource
 import shutil
 import tempfile
+import threading
 import time
 from pathlib import Path
 from urllib.parse import quote
@@ -21,6 +23,28 @@ from pydantic import BaseModel
 
 from . import p4, sessions, workspace
 from . import index as change_index  # avoid clashing with the def index() route
+
+
+def _raise_fd_limit(target=4096):
+    """Lift the open-file soft limit toward `target`.
+
+    launchd hands agents a soft limit of 256 descriptors. A markdown
+    page with a hundred images opens that many client sockets at once
+    (HTTP/2 through `tailscale serve` multiplexes them all), and every
+    /api/raw adds pipes for two p4 subprocesses on top — enough to hit
+    EMFILE, which showed up as the later images on a long page silently
+    failing to load. The hard limit is unlimited here, so just ask for
+    more."""
+    try:
+        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        want = target if hard == resource.RLIM_INFINITY else min(target, hard)
+        if soft < want:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (want, hard))
+    except (ValueError, OSError):
+        pass  # best effort: the concurrency cap below still bounds the damage
+
+
+_raise_fd_limit()
 
 app = FastAPI(title="p4-web")
 
@@ -485,6 +509,15 @@ def _content_disposition(disposition, name):
 
 MAX_RAW_BYTES = 100 * 1024 * 1024
 
+# Starting a raw stream costs an fstat subprocess plus a `p4 print`.
+# A page full of images fires them all at once, so start a handful at
+# a time and let the rest wait their turn — queuing is invisible to the
+# browser, whereas failing is a permanently broken image. The slot
+# covers only the setup: a holder never needs a worker thread to make
+# progress, so waiters (which do occupy one) can't starve it.
+RAW_CONCURRENCY = int(os.environ.get("P4WEB_RAW_CONCURRENCY", "8"))
+_raw_slots = threading.BoundedSemaphore(RAW_CONCURRENCY)
+
 
 @app.get("/api/raw")
 def raw_content(
@@ -499,15 +532,19 @@ def raw_content(
     if not path.startswith("//"):
         raise HTTPException(status_code=400, detail="Path must start with //")
     spec = p4.escape_path(path) + (f"#{rev}" if rev else "")
-    stats = p4_call(p4.run, ["fstat", "-Ol", spec], user, ticket)
-    if not stats:
-        raise HTTPException(status_code=404, detail="File not found")
-    if int(stats[0].get("fileSize", 0)) > MAX_RAW_BYTES:
-        raise HTTPException(status_code=413, detail="File too large")
-    # Stream straight from `p4 print` rather than buffering the whole
-    # file (up to MAX_RAW_BYTES) in memory — a handful of concurrent
-    # large downloads would otherwise be an easy memory-exhaustion DoS.
-    proc, first = p4_call(p4.print_open, spec, user, ticket)
+    _raw_slots.acquire()
+    try:
+        stats = p4_call(p4.run, ["fstat", "-Ol", spec], user, ticket)
+        if not stats:
+            raise HTTPException(status_code=404, detail="File not found")
+        if int(stats[0].get("fileSize", 0)) > MAX_RAW_BYTES:
+            raise HTTPException(status_code=413, detail="File too large")
+        # Stream straight from `p4 print` rather than buffering the whole
+        # file (up to MAX_RAW_BYTES) in memory — a handful of concurrent
+        # large downloads would otherwise be an easy memory-exhaustion DoS.
+        proc, first = p4_call(p4.print_open, spec, user, ticket)
+    finally:
+        _raw_slots.release()
     name = path.rsplit("/", 1)[-1]
     media = mimetypes.guess_type(name)[0] or "application/octet-stream"
     disposition = "attachment" if download else "inline"

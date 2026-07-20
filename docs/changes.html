@@ -61,6 +61,19 @@
       <a href="https://github.com/neoocean/p4-web">GitHub</a>.</p>
   </header>
 
+  <section class="cl" id="d-2026-07-20">
+    <div class="gutter">
+      <div class="clno">2026-07-20</div>
+      <div class="clmeta">day 5</div>
+    </div>
+    <div class="content">
+      <h2>Long pages keep their pictures</h2>
+      <ul class="chg-list">
+        <li><span class="chg-cl">66121</span><span class="chg-title">A markdown file with a hundred screenshots now loads every one of them — the later images used to fail silently <span class="chg-note">(the server was running out of file descriptors: HTTP/2 lets the browser open all those image requests at once, and each one spawns two <code>p4</code> processes. It now raises its own limit, starts streams a few at a time, and the page retries an image that still fails.)</span></span></li>
+      </ul>
+    </div>
+  </section>
+
   <section class="cl" id="d-2026-07-19">
     <div class="gutter">
       <div class="clno">2026-07-19</div>

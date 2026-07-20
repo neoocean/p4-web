@@ -758,6 +758,19 @@ function isMarkdownFile(name) {
   return /\.(md|markdown)$/i.test(name);
 }
 
+function retryOnError(img, tries = 3) {
+  /* A page full of images can momentarily overwhelm the server, and a
+     failed <img> stays broken forever on its own. Retry with backoff so
+     a transient hiccup doesn't cost the reader the picture. */
+  let attempt = 0;
+  img.addEventListener("error", () => {
+    if (attempt >= tries) return;
+    attempt += 1;
+    const url = img.src.split("#")[0];
+    setTimeout(() => { img.src = `${url}#retry${attempt}`; }, 400 * attempt);
+  });
+}
+
 function renderMarkdown(md, baseDir) {
   /* Depot content is untrusted: parse with marked, sanitize with
      DOMPurify, then fix up relative links/images against the file's
@@ -772,6 +785,7 @@ function renderMarkdown(md, baseDir) {
     const src = img.getAttribute("src") || "";
     if (isRel(src)) img.src = `/api/raw?path=${encodeURIComponent(baseDir + "/" + src)}`;
     img.loading = "lazy";
+    retryOnError(img);
   }
   for (const a of div.querySelectorAll("a")) {
     const href = a.getAttribute("href") || "";
