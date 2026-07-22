@@ -388,14 +388,18 @@ body {
   overflow: hidden;
 }
 
-.listing th, .listing td {
+/* Direct children only: a changelist row expands into a nested diff
+   table, and a descendant selector would hand its cells this padding
+   and `nowrap` — which beats .sp-code on specificity and leaves the
+   two panes overflowing onto each other. */
+.listing > thead > tr > th, .listing > tbody > tr > td {
   text-align: left;
   padding: 7px 12px;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
-.listing td:nth-child(5) { white-space: normal; }
+.listing > tbody > tr > td:nth-child(5) { white-space: normal; }
 
 .listing th {
   font-size: 12px;
@@ -407,11 +411,11 @@ body {
   z-index: 5;
 }
 
-.listing tbody tr:last-child td { border-bottom: none; }
-.listing tbody tr:hover { background: var(--accent-soft); }
+.listing > tbody > tr:last-child > td { border-bottom: none; }
+.listing > tbody > tr:hover { background: var(--accent-soft); }
 .listing a { color: var(--text); text-decoration: none; }
 .listing a:hover { color: var(--accent); }
-.listing td a[href^="#/change/"] { color: var(--accent); }
+.listing > tbody > tr > td a[href^="#/change/"] { color: var(--accent); }
 .cell-icon { width: 24px; padding-right: 0; }
 
 /* ---------- file viewer ---------- */
@@ -739,7 +743,11 @@ th.sortable:hover { color: var(--accent); }
   vertical-align: top;
 }
 
-.sp-file, .sp-hunk { overflow-wrap: anywhere; }
+/* white-space inherits: a diff opened inside a changelist sits in a
+   .listing cell that is nowrap, so reset it here rather than on every
+   kind of cell. */
+.diff-view { white-space: normal; }
+.sp-file, .sp-hunk { white-space: pre-wrap; overflow-wrap: anywhere; }
 
 .sp-code { white-space: pre-wrap; overflow-wrap: anywhere; padding: 0 10px; vertical-align: top; }
 .sp-add { background: var(--diff-add); }
@@ -1336,7 +1344,7 @@ dialog textarea { font-family: var(--mono); }
   .filterbar { flex-wrap: wrap; gap: 8px 12px; }
   .filterbar input, .filterbar select { max-width: 100%; }
 
-  .listing th, .listing td { padding: 8px 8px; }
+  .listing > thead > tr > th, .listing > tbody > tr > td { padding: 8px 8px; }
   .desc-cell { max-width: 52vw; }
 
   .file-head { gap: 8px 14px; }
