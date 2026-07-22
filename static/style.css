@@ -691,6 +691,71 @@ th.sortable:hover { color: var(--accent); }
 }
 
 .diff-line { padding: 0 14px; white-space: pre; }
+
+/* Unified rows carry both sides' line numbers so a diff line can be
+   commented on by the same anchor the file viewer uses. */
+.dl-gutter { display: inline-block; user-select: none; }
+.dl-num {
+  display: inline-block;
+  width: 3.2em;
+  text-align: right;
+  padding-right: 6px;
+  color: var(--gutter);
+}
+.dl-sign { display: inline-block; width: 1.2em; }
+
+.dl-cmt {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  padding: 0 4px;
+  opacity: 0;
+  color: var(--muted);
+}
+.diff-line:hover .dl-cmt, .split-table tr:hover .dl-cmt, .dl-cmt.has-threads { opacity: 1; }
+.dl-cmt.has-threads { color: var(--accent); }
+/* Touch devices never hover: keep the affordance visible but quiet. */
+@media (hover: none) {
+  .dl-cmt { opacity: 0.55; }
+}
+
+/* An expanded diff must not stretch the file listing it sits in: with
+   `max-width: 0` the cell takes the table's own width instead of the
+   diff's, and the code scrolls inside .diff-view where it belongs. */
+.diff-row > td { max-width: 0; }
+
+.dl-panel-row > td { padding: 0 !important; white-space: normal; }
+/* The row is what the horizontal scroll moves, so it carries the
+   stickiness; the panel inside just fills the visible width. */
+div.dl-panel-row { position: sticky; left: 0; width: 100%; }
+.dl-panel {
+  /* The diff scrolls sideways; the thread should not. Sticking to the
+     left edge with the container's own width keeps the composer on
+     screen however far the code is scrolled. */
+  position: sticky;
+  left: 0;
+  width: 100%;
+  white-space: normal;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  background: var(--subtle);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 14px;
+  margin: 4px 0;
+}
+.dl-panel-head { display: flex; gap: 8px; align-items: baseline; margin-bottom: 6px; }
+.dl-thread-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-bottom: 8px;
+}
+.dl-c + .dl-c { border-top: 1px solid var(--border); padding-top: 6px; }
+.dl-panel .cmt-form { margin-top: 4px; }
 .diff-add { background: var(--diff-add); color: var(--diff-add-text); }
 .diff-del { background: var(--diff-del); color: var(--diff-del-text); }
 .diff-hunk { background: var(--diff-hunk); color: var(--info-text); padding-top: 2px; padding-bottom: 2px; }
@@ -996,6 +1061,119 @@ dialog textarea { font-family: var(--mono); }
 .fav-chg .muted { font-size: 12px; flex: none; }
 .fav-chg-desc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* Thread counts on listing rows: quiet until there is something to say. */
+.cmt-badge {
+  margin-left: 8px;
+  font-size: 11px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 9px;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+.cmt-badge.resolved { color: var(--muted); background: var(--subtle); }
+
+/* ---------- @mentions ---------- */
+
+.mentions-btn {
+  text-decoration: none;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mention {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 4px;
+  padding: 0 3px;
+}
+/* Being named yourself is the case worth spotting in a long thread. */
+.mention-me { background: var(--warn-bg); color: var(--warn-text); font-weight: 600; }
+
+.mention-menu {
+  position: fixed;
+  z-index: 60;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  min-width: 140px;
+}
+
+.mention-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.mention-menu button.on, .mention-menu button:hover { background: var(--accent-soft); color: var(--accent); }
+
+.mn-list { max-width: 860px; }
+.mn-item {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+}
+.mn-item.unseen { border-left: 3px solid var(--accent); }
+.mn-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; font-size: 13px; }
+.mn-head .mono { font-size: 12px; overflow-wrap: anywhere; }
+
+/* ---------- light reviews ---------- */
+
+.rv-bar {
+  margin-top: 20px;
+  max-width: 860px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rv-state { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 14px; }
+.rv-state .muted { font-size: 12px; }
+.rv-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.rv-actions .toolbtn.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+.rv-note-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.rv-history { font-size: 13px; }
+.rv-history summary { cursor: pointer; color: var(--muted); }
+.rv-event {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+.rv-event .muted { font-size: 12px; }
+.rv-note { flex-basis: 100%; color: var(--muted); white-space: pre-wrap; }
+
 /* ---------- comments ---------- */
 
 .cmt-panel { margin-top: 20px; max-width: 860px; }
@@ -1032,6 +1210,13 @@ dialog textarea { font-family: var(--mono); }
 .cmt .md-body { padding: 6px 0 0; font-size: 13.5px; }
 .cmt .md-body p:first-child { margin-top: 0; }
 .cmt .md-body p:last-child { margin-bottom: 0; }
+
+.cmt-file {
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 6px 14px 0;
+  overflow-wrap: anywhere;
+}
 
 .cmt-form { display: flex; gap: 8px; align-items: flex-start; padding: 8px 0 4px; flex-wrap: wrap; }
 .cmt-reply-slot .cmt-form, .cmt-editing { padding: 8px 14px; }
@@ -1362,6 +1547,10 @@ dialog textarea { font-family: var(--mono); }
   .timelapse input[type="range"] { width: 140px; }
 
   .login-card { width: calc(100vw - 48px); max-width: 320px; padding: 24px; }
+
+  /* The in-diff composer has to fit a phone, not a 220px minimum. */
+  .dl-panel .cmt-form textarea { min-width: 0; }
+  .dl-panel { padding: 8px 10px; }
 
   .grep-text { white-space: pre-wrap; word-break: break-all; }
   .chg-desc { font-size: 12px; }

@@ -98,6 +98,9 @@ function showApp() {
   $("#login-notice").classList.add("hidden");
   $("#app").classList.remove("hidden");
   $("#whoami").textContent = currentUser ? `${currentUser.user} @ ${currentUser.p4port}` : "";
+  refreshMentionBadge();
+  // Warm the user list so mention chips and autocomplete are ready.
+  knownUsers();
   route();
 }
 
@@ -483,7 +486,7 @@ registerRoute(/^#\/browse(\/\/[^?]*)?(\?.*)?$/, async (view, m) => {
       <td class="hide-sm">#${f.rev}</td>
       <td class="hide-sm"><a href="#/change/${f.change}">${f.change}</a></td>
       <td class="hide-sm">${esc(f.type)}</td>
-      <td>${fmtTime(f.time)}</td>
+      <td>${fmtTime(f.time)}<span data-cmt-key="${esc(f.path)}"></span></td>
     </tr>`);
   }
   view.innerHTML = `
@@ -507,6 +510,8 @@ registerRoute(/^#\/browse(\/\/[^?]*)?(\?.*)?$/, async (view, m) => {
         <tbody>${rows.join("") || '<tr><td></td><td colspan="5" class="muted">Empty directory</td></tr>'}</tbody>
       </table>
     </div>`;
+
+  if (path && data.files.length) fillThreadBadges(view, `dir=${encodeURIComponent(path)}`);
 
   for (const th of view.querySelectorAll("th.sortable")) {
     th.addEventListener("click", () => {
@@ -1071,13 +1076,18 @@ async function renderFileDiff(view, path, params) {
     if (params.get(k)) qp.set(k, params.get(k));
   }
   const data = await api(`/api/diff?${qp}`);
+  // Comments anchor to the newer side; a diff against a shelf or a date
+  // has no revision number to hang them on, so it stays read-only.
+  const rev2 = /^#(\d+)$/.exec(data.spec2 || "");
+  const anchor = rev2 ? { path, rev: Number(rev2[1]) } : null;
   view.innerHTML = `
     <div class="pane">
       ${fileHeadHtml(path, `<span>diff ${esc(data.spec1)} → ${esc(data.spec2)}</span>`)}
       ${fileTabBar(path, "diff", null)}
-      ${diffBlockHtml(data.diff)}
+      ${diffBlockHtml(data.diff, anchor)}
     </div>`;
   bindDiffToggles(view);
+  if (anchor) bindDiffComments(view.querySelector("[data-diff-raw]"), anchor);
 }
 
 function firstLine(s) {
@@ -1113,8 +1123,10 @@ function diffToggleHtml() {
 function rerenderDiffs() {
   // Re-render every diff block that stored its raw text.
   for (const holder of document.querySelectorAll("[data-diff-raw]")) {
-    holder.innerHTML = renderDiffText(holder.dataset.diffRaw);
+    const anchor = diffAnchorOf(holder);
+    holder.innerHTML = renderDiffText(holder.dataset.diffRaw, anchor);
     bindDiffToggles(holder);
+    if (anchor) bindDiffComments(holder, anchor);
   }
 }
 
@@ -1131,33 +1143,88 @@ function bindDiffToggles(container) {
   }
 }
 
-function diffBlockHtml(text) {
+function diffBlockHtml(text, anchor) {
   // Wrapper that remembers the raw diff so the view toggle can re-render.
-  return `<div data-diff-raw="${esc(text)}">${renderDiffText(text)}</div>`;
+  // With an anchor ({path, rev, change}) the block also becomes
+  // commentable: every line that exists on the new side can carry a
+  // thread, and existing threads show up against their line.
+  const a = anchor && anchor.path
+    ? ` data-diff-path="${esc(anchor.path)}"${anchor.rev ? ` data-diff-rev="${anchor.rev}"` : ""}${anchor.change ? ` data-diff-change="${anchor.change}"` : ""}`
+    : "";
+  return `<div data-diff-raw="${esc(text)}"${a}>${renderDiffText(text, anchor)}</div>`;
 }
 
-function renderDiffText(text) {
+function diffAnchorOf(holder) {
+  const path = holder.dataset.diffPath;
+  if (!path) return null;
+  return {
+    path,
+    rev: Number(holder.dataset.diffRev) || null,
+    change: Number(holder.dataset.diffChange) || null,
+  };
+}
+
+function parseUnifiedDiff(text) {
+  /* One pass over `p4 diff2 -du` output, carrying both sides' line
+     numbers. Shared by the unified and side-by-side renderers so a line
+     number means the same thing in either view. */
+  const rows = [];
+  let lno = 0, rno = 0;
+  for (const l of text.replace(/\n$/, "").split("\n")) {
+    if (l.startsWith("====")) {
+      rows.push({ kind: "file", text: l });
+    } else if (l.startsWith("@@")) {
+      const m = l.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+      if (m) { lno = Number(m[1]); rno = Number(m[2]); }
+      rows.push({ kind: "hunk", text: l });
+    } else if (l.startsWith("+")) {
+      rows.push({ kind: "add", text: l.slice(1), newNo: rno++ });
+    } else if (l.startsWith("-")) {
+      rows.push({ kind: "del", text: l.slice(1), oldNo: lno++ });
+    } else {
+      rows.push({ kind: "ctx", text: l.startsWith(" ") ? l.slice(1) : l,
+                  oldNo: lno++, newNo: rno++ });
+    }
+  }
+  return rows;
+}
+
+function diffGutterHtml(row, commentable) {
+  const sign = row.kind === "add" ? "+" : row.kind === "del" ? "-" : " ";
+  // Only new-side lines can hold a thread: a comment is anchored to
+  // path#rev:line, and a deleted line has no line in that revision.
+  const btn = commentable && row.newNo != null
+    ? `<button class="dl-cmt" data-line="${row.newNo}" title="Comment on line ${row.newNo}" aria-label="Comment on line ${row.newNo}">&#128172;</button>`
+    : "";
+  return `<span class="dl-gutter"><span class="dl-num">${row.oldNo ?? ""}</span><span class="dl-num">${row.newNo ?? ""}</span>${btn}</span><span class="dl-sign">${sign}</span>`;
+}
+
+function renderDiffText(text, anchor) {
   if (!text.trim()) return '<p class="notice">No differences.</p>';
   const toggle = diffToggleHtml();
-  if (diffViewMode() === "split") return toggle + renderDiffSplit(text);
-  const rows = text.replace(/\n$/, "").split("\n").map((l) => {
-    let cls = "ctx";
-    if (l.startsWith("====")) cls = "file";
-    else if (l.startsWith("@@")) cls = "hunk";
-    else if (l.startsWith("+")) cls = "add";
-    else if (l.startsWith("-")) cls = "del";
-    return `<div class="diff-line diff-${cls}">${esc(l) || "&nbsp;"}</div>`;
+  if (diffViewMode() === "split") return toggle + renderDiffSplit(text, anchor);
+  const commentable = !!(anchor && anchor.path);
+  const rows = parseUnifiedDiff(text).map((row) => {
+    if (row.kind === "file" || row.kind === "hunk") {
+      return `<div class="diff-line diff-${row.kind}">${esc(row.text) || "&nbsp;"}</div>`;
+    }
+    return `<div class="diff-line diff-${row.kind}"${row.newNo != null ? ` data-line="${row.newNo}"` : ""}>${
+      diffGutterHtml(row, commentable)}<span class="dl-text">${esc(row.text) || " "}</span></div>`;
   });
   return `${toggle}<div class="diff-view">${rows.join("")}</div>`;
 }
 
-function renderDiffSplit(text) {
+function renderDiffSplit(text, anchor) {
   // Parse a unified diff into aligned left/right rows.
+  const commentable = !!(anchor && anchor.path);
   const out = [];
   const push = (lcls, lno, ltext, rcls, rno, rtext) => {
-    out.push(`<tr>
+    const btn = commentable && rno != null
+      ? `<button class="dl-cmt" data-line="${rno}" title="Comment on line ${rno}" aria-label="Comment on line ${rno}">&#128172;</button>`
+      : "";
+    out.push(`<tr${rno != null ? ` data-line="${rno}"` : ""}>
       <td class="sp-num">${lno ?? ""}</td><td class="sp-code sp-${lcls}">${ltext == null ? "" : esc(ltext) || " "}</td>
-      <td class="sp-num">${rno ?? ""}</td><td class="sp-code sp-${rcls}">${rtext == null ? "" : esc(rtext) || " "}</td>
+      <td class="sp-num">${rno ?? ""}${btn}</td><td class="sp-code sp-${rcls}">${rtext == null ? "" : esc(rtext) || " "}</td>
     </tr>`);
   };
   let lno = 0, rno = 0;
@@ -1407,6 +1474,28 @@ registerRoute(/^#\/search/, async (view) => {
     ${body}`);
 });
 
+/* ---------- open-thread badges on listings ---------- */
+
+function threadBadgeHtml(count) {
+  if (!count || !count.total) return "";
+  const open = count.open;
+  return `<span class="cmt-badge${open ? "" : " resolved"}" title="${
+    count.total} thread${count.total === 1 ? "" : "s"}, ${open} open">\u{1F4AC}${open || count.total}</span>`;
+}
+
+async function fillThreadBadges(root, query) {
+  /* Listings paint first and ask about comments afterwards: the count is
+     a nicety and must never hold up (or break) the rows themselves. */
+  let counts;
+  try { counts = (await api(`/api/comments/counts?${query}`)).counts; }
+  catch (e) { return; }
+  if (!root.isConnected) return;
+  for (const slot of root.querySelectorAll("[data-cmt-key]")) {
+    const c = counts[slot.dataset.cmtKey];
+    if (c) slot.innerHTML = threadBadgeHtml(c);
+  }
+}
+
 /* ---------- changes list ---------- */
 
 function changeRow(c) {
@@ -1414,7 +1503,7 @@ function changeRow(c) {
     <td><a href="#/change/${c.change}">${c.change}</a></td>
     <td>${fmtTime(c.time)}</td>
     <td class="hide-sm">${esc(c.user)}</td>
-    <td class="desc-cell" title="${esc(c.desc)}">${esc(firstLine(c.desc))}</td>
+    <td class="desc-cell" title="${esc(c.desc)}">${esc(firstLine(c.desc))}<span data-cmt-key="${c.change}"></span></td>
   </tr>`;
 }
 
@@ -1695,6 +1784,9 @@ registerRoute(/^#\/changes/, async (view, m) => {
 
   $("#chg-rows", view).innerHTML = data.changes.map(changeRow).join("") ||
     '<tr><td colspan="4" class="muted">No changes found</td></tr>';
+  if (data.changes.length) {
+    fillThreadBadges(view, `changes=${data.changes.map((c) => c.change).join(",")}`);
+  }
 
   // The index bar and the background warm-up trail the listing.
   if (statusP) {
@@ -1725,6 +1817,9 @@ registerRoute(/^#\/changes/, async (view, m) => {
         $("#chg-rows", view).insertAdjacentHTML(
           "beforeend", page.changes.map(changeRow).join("")
         );
+        if (page.changes.length) {
+          fillThreadBadges(view, `changes=${page.changes.map((c) => c.change).join(",")}`);
+        }
         if (page.oldest) oldest = page.oldest;
         // rawCount reflects pre-filter rows: only stop when p4 itself ran dry.
         if (page.rawCount < page.pageSize) more.remove();
@@ -1807,8 +1902,10 @@ registerRoute(/^#\/change\/(\d+)$/, async (view, m) => {
         <tbody>${fileRows.join("") ||
           '<tr><td></td><td colspan="4" class="muted">No files</td></tr>'}</tbody>
       </table>
+      <div id="chg-review"></div>
       <div id="chg-comments"></div>
     </div>`;
+  renderReviewBar($("#chg-review", view), c.change);
   renderCommentsPanel($("#chg-comments", view), { change: c.change });
 
   for (const d of view.querySelectorAll(".disclosure")) {
@@ -1838,8 +1935,16 @@ registerRoute(/^#\/change\/(\d+)$/, async (view, m) => {
             dq.set("rev2", f.rev);
           }
           const dd = await api(`/api/diff?${dq}`);
-          cell.innerHTML = diffBlockHtml(dd.diff);
+          // A shelved file has no revision of its own yet, so its
+          // comments hang off the path and the changelist alone.
+          const anchor = {
+            path: f.path,
+            rev: c.status === "submitted" ? f.rev : null,
+            change: c.change,
+          };
+          cell.innerHTML = diffBlockHtml(dd.diff, anchor);
           bindDiffToggles(cell);
+          bindDiffComments(cell.firstElementChild, anchor);
           cell.dataset.loaded = "1";
         } catch (err) {
           cell.innerHTML = errorBoxHtml(err);
@@ -2030,12 +2135,419 @@ registerRoute(/^#\/users$/, async (view) => {
   </div>`;
 });
 
+/* ---------- @mentions ---------- */
+
+const MENTION_RE = /(^|[^\w@])@([A-Za-z0-9_][A-Za-z0-9_.-]*[A-Za-z0-9_]|[A-Za-z0-9_])/g;
+
+let mentionUsers = null;
+let mentionUserSet = null;
+
+async function knownUsers() {
+  /* The user list backs both the @-autocomplete and the decision to
+     style a name as a chip. Fetched once per page load. */
+  if (mentionUsers) return mentionUsers;
+  try {
+    const data = await api("/api/users");
+    mentionUsers = data.users.map((u) => u.user);
+  } catch (e) { mentionUsers = []; }
+  mentionUserSet = new Set(mentionUsers);
+  return mentionUsers;
+}
+
+function decorateMentions(el) {
+  /* Runs on the sanitized markdown output, and builds the chip with DOM
+     calls rather than HTML, so a body can never smuggle markup in
+     through a name. Code and links are left alone. */
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const targets = [];
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    if (node.parentElement.closest("code, pre, a")) continue;
+    if (/@[A-Za-z0-9_]/.test(node.nodeValue)) targets.push(node);
+  }
+  const me = currentUser ? currentUser.user : "";
+  for (const node of targets) {
+    const frag = document.createDocumentFragment();
+    let last = 0;
+    for (const m of node.nodeValue.matchAll(MENTION_RE)) {
+      // Only real users get a chip. Until the list has loaded nothing is
+      // marked up, rather than promising a name that may not exist.
+      if (!mentionUserSet || !mentionUserSet.has(m[2])) continue;
+      const start = m.index + m[1].length;
+      frag.append(node.nodeValue.slice(last, start));
+      const chip = document.createElement("span");
+      chip.className = "mention" + (m[2] === me ? " mention-me" : "");
+      chip.textContent = "@" + m[2];
+      frag.append(chip);
+      last = start + m[0].length - m[1].length;
+    }
+    frag.append(node.nodeValue.slice(last));
+    node.replaceWith(frag);
+  }
+}
+
+async function refreshMentionBadge() {
+  const btn = $("#mentions-btn");
+  if (!btn || !currentUser) return;
+  let n = 0;
+  try { n = (await api("/api/mentions?unseen=1&max=1")).unseen; }
+  catch (e) { return; }
+  $("#mentions-count").textContent = n;
+  btn.classList.toggle("hidden", n === 0);
+}
+
+function bindMentionAutocomplete(ta) {
+  /* Typing "@ali" over a textarea offers matching user names; Tab or
+     Enter takes the highlighted one. */
+  if (!ta || ta.dataset.mentionBound) return;
+  ta.dataset.mentionBound = "1";
+  let box = null, matches = [], active = 0, from = 0;
+
+  const close = () => { if (box) box.remove(); box = null; matches = []; };
+
+  const apply = () => {
+    const name = matches[active];
+    if (name == null) return;
+    const before = ta.value.slice(0, from);
+    const after = ta.value.slice(ta.selectionStart);
+    ta.value = `${before}@${name} ${after}`;
+    const pos = before.length + name.length + 2;
+    ta.setSelectionRange(pos, pos);
+    close();
+    ta.focus();
+  };
+
+  const render = () => {
+    if (!matches.length) { close(); return; }
+    if (!box) {
+      box = document.createElement("div");
+      box.className = "mention-menu";
+      document.body.appendChild(box);
+    }
+    box.innerHTML = matches
+      .map((u, i) => `<button type="button" class="${i === active ? "on" : ""}" data-i="${i}">${esc(u)}</button>`)
+      .join("");
+    const r = ta.getBoundingClientRect();
+    box.style.left = `${r.left + 10}px`;
+    box.style.top = `${r.bottom + 4}px`;
+    box.onmousedown = (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      e.preventDefault();
+      active = Number(b.dataset.i);
+      apply();
+    };
+  };
+
+  ta.addEventListener("input", async () => {
+    const upto = ta.value.slice(0, ta.selectionStart);
+    const m = /(^|[^\w@])@([A-Za-z0-9_.-]*)$/.exec(upto);
+    if (!m) { close(); return; }
+    from = upto.length - m[2].length - 1;
+    const q = m[2].toLowerCase();
+    const users = await knownUsers();
+    matches = users.filter((u) => u.toLowerCase().startsWith(q)).slice(0, 8);
+    active = 0;
+    render();
+  });
+  ta.addEventListener("keydown", (e) => {
+    if (!box || !matches.length) return;
+    if (e.key === "ArrowDown") { active = (active + 1) % matches.length; render(); e.preventDefault(); }
+    else if (e.key === "ArrowUp") { active = (active - 1 + matches.length) % matches.length; render(); e.preventDefault(); }
+    else if (e.key === "Enter" || e.key === "Tab") { apply(); e.preventDefault(); }
+    else if (e.key === "Escape") { close(); }
+  });
+  ta.addEventListener("blur", () => setTimeout(close, 150));
+}
+
+function mentionAnchorHash(c) {
+  if (c.path) {
+    const q = [];
+    if (c.rev) q.push(`rev=${c.rev}`);
+    if (c.line) q.push(`line=${c.line}`);
+    return `#/file${c.path}${q.length ? `?${q.join("&")}` : ""}`;
+  }
+  return `#/change/${c.change}`;
+}
+
+registerRoute(/^#\/mentions/, async (view) => {
+  spinner(view);
+  let data;
+  try { data = await api("/api/mentions"); }
+  catch (err) { if (err.status !== 401) renderError(view, err); return; }
+
+  const rows = data.mentions.map((m) => {
+    const c = m.comment;
+    const where = c.path
+      ? `${esc(c.path)}${c.rev ? `#${c.rev}` : ""}${c.line ? ` line ${c.line}` : ""}`
+      : `change ${c.change}`;
+    return `<div class="mn-item${m.seen ? "" : " unseen"}">
+      <div class="mn-head">
+        <span class="cmt-user">${esc(c.user)}</span>
+        <span class="muted">${fmtTime(Math.floor(c.created))}</span>
+        <a class="mono" href="${mentionAnchorHash(c)}">${where}</a>
+        ${m.seen ? "" : '<span class="badge badge-pending">new</span>'}
+      </div>
+      ${commentBodyHtml(c)}
+    </div>`;
+  });
+  view.innerHTML = `<div class="pane">
+    <h2 class="search-title">Mentions</h2>
+    <p class="muted">Comments that name you. ${data.unseen} unread.</p>
+    <div class="mn-list">${rows.join("") ||
+      '<p class="placeholder">Nobody has mentioned you yet.</p>'}</div>
+  </div>`;
+  for (const el of view.querySelectorAll(".cmt-body")) decorateMentions(el);
+
+  // Opening the page is the acknowledgement.
+  if (data.unseen) {
+    try { await apiJson("/api/mentions/seen", "POST", {}); } catch (e) { /* badge stays */ }
+    refreshMentionBadge();
+  }
+});
+
+/* ---------- comments anchored inside a diff ---------- */
+
+function diffThreadHtml(root, replies) {
+  const one = (c) => `<div class="dl-c">
+    <div class="cmt-head">
+      <span class="cmt-user">${esc(c.user)}</span>
+      <span class="muted">${fmtTime(Math.floor(c.created))}${c.updated ? " · edited" : ""}</span>
+      ${c.resolved ? '<span class="badge badge-add">resolved</span>' : ""}
+    </div>
+    ${commentBodyHtml(c)}
+  </div>`;
+  return `<div class="dl-thread-box" data-root="${root.id}">
+    ${[root, ...replies].map(one).join("")}
+    <form class="cmt-form dl-reply"><textarea rows="2" placeholder="Reply…"></textarea>
+      <button type="submit">Reply</button></form>
+  </div>`;
+}
+
+async function bindDiffComments(holder, anchor) {
+  /* Threads live on the file (path#rev:line), so the same conversation
+     shows up in the file viewer and in every changelist whose diff
+     touches that line. Fetched once per diff block. */
+  let comments = [];
+  try {
+    comments = (await api(`/api/comments?path=${encodeURIComponent(anchor.path)}`)).comments;
+  } catch (e) { /* comments are a nicety; a failure must not break the diff */ }
+  if (!holder.isConnected) return;
+
+  const byLine = new Map();
+  for (const c of comments) {
+    if (c.parent || !c.line || c.deleted) continue;
+    if (!byLine.has(c.line)) byLine.set(c.line, []);
+    byLine.get(c.line).push(c);
+  }
+  const repliesOf = (id) => comments.filter((c) => c.parent === id);
+  // The markers are redrawn on every refresh; the click handler is bound
+  // once and reads the current state through this record.
+  const state = { byLine, repliesOf };
+  holder._diffComments = state;
+
+  for (const btn of holder.querySelectorAll(".dl-cmt")) {
+    btn.classList.remove("has-threads");
+    btn.textContent = "\u{1F4AC}";
+    btn.title = `Comment on line ${btn.dataset.line}`;
+  }
+  for (const [line, roots] of byLine) {
+    const open = roots.filter((r) => !r.resolved).length;
+    for (const btn of holder.querySelectorAll(`.dl-cmt[data-line="${line}"]`)) {
+      btn.classList.add("has-threads");
+      btn.textContent = `\u{1F4AC}${roots.length}`;
+      btn.title = `${roots.length} thread${roots.length === 1 ? "" : "s"} on line ${line}${open ? "" : " (resolved)"}`;
+    }
+  }
+
+  /* Unified rows are divs, split rows are <tr>. Ask for the div first:
+     a unified diff expanded inside a changelist sits in a <td> of the
+     file listing, so `closest("tr")` there would find the listing's own
+     row and hang the panel outside the diff entirely. */
+  const rowFor = (btn) => btn.closest(".diff-line") || btn.closest("tr");
+
+  if (holder.dataset.cmtBound) return;
+  holder.dataset.cmtBound = "1";
+
+  holder.addEventListener("click", (e) => {
+    const btn = e.target.closest(".dl-cmt");
+    if (!btn || !holder.contains(btn)) return;
+    e.preventDefault();
+    const line = Number(btn.dataset.line);
+    const row = rowFor(btn);
+    const existing = row.nextElementSibling;
+    if (existing && existing.classList.contains("dl-panel-row")) {
+      existing.remove();
+      return;
+    }
+    const roots = holder._diffComments.byLine.get(line) || [];
+    const inner = `<div class="dl-panel">
+      <div class="dl-panel-head"><strong>Line ${line}</strong>
+        <span class="muted">${esc(anchor.path.split("/").pop())}${anchor.rev ? `#${anchor.rev}` : ""}</span></div>
+      ${roots.map((r) => diffThreadHtml(r, holder._diffComments.repliesOf(r.id))).join("")}
+      <form class="cmt-form dl-new"><textarea rows="2" placeholder="Comment on line ${line}… (markdown supported)"></textarea>
+        <button type="submit">Comment</button></form>
+    </div>`;
+    const holderRow = document.createElement(row.tagName === "TR" ? "tr" : "div");
+    holderRow.className = "dl-panel-row";
+    holderRow.innerHTML = row.tagName === "TR" ? `<td colspan="4">${inner}</td>` : inner;
+    row.after(holderRow);
+
+    const post = async (body, parent) => {
+      const payload = parent
+        ? { body, parent }
+        : { body, path: anchor.path, rev: anchor.rev, line, change: anchor.change };
+      await apiJson("/api/comments", "POST", payload);
+      holderRow.remove();
+      // Pull the new state in, and refresh any comment panel on the page.
+      bindDiffComments(holder, anchor);
+      const panel = document.querySelector(".cmt-panel");
+      if (panel && panel.dataset.anchor) {
+        renderCommentsPanel(panel.parentElement, JSON.parse(panel.dataset.anchor));
+      }
+    };
+    holderRow.querySelector(".dl-new").addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const t = ev.target.querySelector("textarea").value.trim();
+      if (!t) return;
+      try { await post(t, null); } catch (err) { alert(err.message); }
+    });
+    for (const form of holderRow.querySelectorAll(".dl-reply")) {
+      form.addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+        const t = ev.target.querySelector("textarea").value.trim();
+        if (!t) return;
+        const rootId = Number(ev.target.closest(".dl-thread-box").dataset.root);
+        try { await post(t, rootId); } catch (err) { alert(err.message); }
+      });
+    }
+    for (const ta of holderRow.querySelectorAll("textarea")) bindMentionAutocomplete(ta);
+    holderRow.querySelector("textarea").focus();
+  });
+}
+
+/* ---------- light reviews ---------- */
+
+const REVIEW_STATES = {
+  "open": { label: "in review", badge: "pending" },
+  "approved": { label: "approved", badge: "add" },
+  "needs-work": { label: "needs work", badge: "delete" },
+};
+
+function reviewBadgeHtml(state) {
+  const s = REVIEW_STATES[state];
+  if (!s) return "";
+  return `<span class="badge badge-${s.badge}">${esc(s.label)}</span>`;
+}
+
+async function renderReviewBar(slot, change) {
+  /* State flag + history for one changelist. Anyone who can see the
+     change can move it to any state; the log says who did. */
+  let data;
+  try { data = await api(`/api/review/${change}`); }
+  catch (e) { slot.innerHTML = ""; return; }
+  if (!slot.isConnected) return;
+  const me = currentUser ? currentUser.user : "";
+  const r = data.review;
+  const events = data.events || [];
+  const button = (state, text) =>
+    `<button class="toolbtn rv-set${r && r.state === state ? " on" : ""}" data-state="${state}">${text}</button>`;
+  const history = events.length
+    ? `<details class="rv-history"><summary>History (${events.length})</summary>${
+        events.slice().reverse().map((e) => `<div class="rv-event">
+          <span class="cmt-user">${esc(e.user)}</span>
+          ${reviewBadgeHtml(e.state)}
+          <span class="muted">${fmtTime(Math.floor(e.created))}</span>
+          ${e.note ? `<div class="rv-note">${esc(e.note)}</div>` : ""}
+        </div>`).join("")
+      }</details>`
+    : "";
+  slot.innerHTML = `<div class="rv-bar">
+    <div class="rv-state">
+      <strong>Review</strong>
+      ${r ? reviewBadgeHtml(r.state) : '<span class="muted">not under review</span>'}
+      ${r ? `<span class="muted">${esc(r.updatedBy)} · ${fmtTime(Math.floor(r.updated))}</span>` : ""}
+    </div>
+    <div class="rv-actions">
+      ${button("open", r ? "Reopen" : "Request review")}
+      ${button("approved", "Approve")}
+      ${button("needs-work", "Needs work")}
+      ${r && r.openedBy === me ? '<button class="toolbtn danger rv-drop">Withdraw</button>' : ""}
+    </div>
+    <input class="rv-note-input" placeholder="Optional note for the history…" maxlength="500">
+    ${history}
+  </div>`;
+
+  for (const btn of slot.querySelectorAll(".rv-set")) {
+    btn.addEventListener("click", async () => {
+      const note = $(".rv-note-input", slot).value.trim();
+      try {
+        await apiJson(`/api/review/${change}`, "POST", { state: btn.dataset.state, note });
+        renderReviewBar(slot, change);
+      } catch (err) { alert(err.message); }
+    });
+  }
+  const drop = $(".rv-drop", slot);
+  if (drop) {
+    drop.addEventListener("click", async () => {
+      if (!confirm("Withdraw this review, including its history?")) return;
+      try {
+        await api(`/api/review/${change}`, { method: "DELETE" });
+        renderReviewBar(slot, change);
+      } catch (err) { alert(err.message); }
+    });
+  }
+}
+
+registerRoute(/^#\/reviews/, async (view) => {
+  const [, params] = parseHashQuery(location.hash);
+  const state = params.get("state") || "";
+  spinner(view);
+  let data;
+  try {
+    data = await api(`/api/reviews${state ? `?state=${encodeURIComponent(state)}` : ""}`);
+  } catch (err) { if (err.status !== 401) renderError(view, err); return; }
+
+  const rows = data.reviews.map((r) => `<tr>
+    <td>${reviewBadgeHtml(r.state)}</td>
+    <td><a href="#/change/${r.change}">${r.change}</a></td>
+    <td><span class="badge badge-${r.status === "submitted" ? "edit" : "pending"}">${esc(r.status)}</span></td>
+    <td>${esc(r.user)}</td>
+    <td class="desc-cell">${esc(firstLine(r.desc))}</td>
+    <td class="hide-sm">${esc(r.updatedBy)} · ${fmtTime(Math.floor(r.updated))}</td>
+  </tr>`);
+  view.innerHTML = `<div class="pane">
+    <h2 class="search-title">Reviews</h2>
+    <div class="filterbar">
+      <label>State
+        <select id="rv-filter">
+          <option value="">all</option>
+          ${Object.entries(REVIEW_STATES).map(([k, v]) =>
+            `<option value="${k}"${state === k ? " selected" : ""}>${esc(v.label)}</option>`).join("")}
+        </select>
+      </label>
+      <span class="muted">${data.reviews.length} review${data.reviews.length === 1 ? "" : "s"}</span>
+    </div>
+    <table class="listing">
+      <thead><tr><th>State</th><th>Change</th><th>Status</th><th>Author</th><th>Description</th><th class="hide-sm">Last activity</th></tr></thead>
+      <tbody>${rows.join("") || `<tr><td colspan="6" class="muted">${
+        state ? "No reviews in this state." : "No reviews yet — open one from any changelist page."
+      }</td></tr>`}</tbody>
+    </table>
+  </div>`;
+  $("#rv-filter", view).addEventListener("change", (e) => {
+    location.hash = e.target.value ? `#/reviews?state=${e.target.value}` : "#/reviews";
+  });
+});
+
 /* ---------- inline comments ---------- */
 
 function commentBodyHtml(c) {
   if (c.deleted) return '<p class="cmt-deleted">(comment deleted)</p>';
   const el = renderMarkdown(c.body, c.path ? c.path.slice(0, c.path.lastIndexOf("/")) : "//");
   el.classList.add("cmt-body");
+  // After sanitizing, before serializing: chips are built from DOM nodes.
+  decorateMentions(el);
   return el.outerHTML;
 }
 
@@ -2063,9 +2575,11 @@ function commentHtml(c, ctx) {
 async function renderCommentsPanel(slot, anchor, opts = {}) {
   /* anchor: {path, rev} or {change}. opts.onLineClick(line). */
   const me = currentUser ? currentUser.user : "";
+  // On a changelist page, `files=1` also pulls in the threads anchored to
+  // lines of its files — the ones opened from inside an expanded diff.
   const qs = anchor.path
     ? `path=${encodeURIComponent(anchor.path)}`
-    : `change=${anchor.change}`;
+    : `change=${anchor.change}&files=1`;
   let comments;
   try {
     comments = (await api(`/api/comments?${qs}`)).comments;
@@ -2078,11 +2592,15 @@ async function renderCommentsPanel(slot, anchor, opts = {}) {
   const resolved = roots.filter((r) => r.resolved);
   const thread = (r) =>
     `<div class="cmt-thread ${r.resolved ? "resolved" : ""}">${
+      r.path && !anchor.path ? `<div class="cmt-file"><a href="#/file${esc(r.path)}${
+        r.rev ? `?rev=${r.rev}` : ""}${r.line ? `${r.rev ? "&" : "?"}line=${r.line}` : ""}">${
+        esc(r.path)}</a>${r.line ? `<span class="muted"> line ${r.line}</span>` : ""}</div>` : ""
+    }${
       [commentHtml(r, { me }), ...replies(r.id).map((c) => commentHtml(c, { me }))].join("")
     }<div class="cmt-reply-slot" data-root="${r.id}"></div></div>`;
 
   slot.innerHTML = `
-    <div class="cmt-panel">
+    <div class="cmt-panel" data-anchor="${esc(JSON.stringify(anchor))}">
       <h3 class="cmt-title">Comments <span class="muted">${open.length}${resolved.length ? ` open · ${resolved.length} resolved` : ""}</span></h3>
       ${open.map(thread).join("")}
       ${resolved.length ? `<details class="cmt-resolved"><summary>Resolved threads (${resolved.length})</summary>${resolved.map(thread).join("")}</details>` : ""}
@@ -2094,6 +2612,12 @@ async function renderCommentsPanel(slot, anchor, opts = {}) {
     </div>`;
 
   const refresh = () => renderCommentsPanel(slot, anchor, opts);
+  // The panel re-renders in place on every change; the delegated click
+  // handler is bound once and reads the current comments through here,
+  // or every refresh would stack another copy of it.
+  slot._cmtState = { comments, refresh, opts };
+
+  bindMentionAutocomplete($("#cmt-text", slot));
 
   $("#cmt-new", slot).addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -2111,11 +2635,21 @@ async function renderCommentsPanel(slot, anchor, opts = {}) {
     catch (err) { alert(err.message); }
   });
 
+  if (slot.dataset.cmtBound) return;
+  slot.dataset.cmtBound = "1";
+
   slot.addEventListener("click", async (e) => {
+    const { comments, refresh, opts } = slot._cmtState;
     const lineLink = e.target.closest(".cmt-line");
     if (lineLink) {
       e.preventDefault();
-      if (opts.onLineClick) opts.onLineClick(Number(lineLink.dataset.line));
+      const line = Number(lineLink.dataset.line);
+      if (opts.onLineClick) { opts.onLineClick(line); return; }
+      // No viewer on this page (a changelist, say): open the file there.
+      const c = comments.find((x) => x.id === Number(lineLink.closest(".cmt").dataset.id));
+      if (c && c.path) {
+        location.hash = `#/file${c.path}?${c.rev ? `rev=${c.rev}&` : ""}line=${line}`;
+      }
       return;
     }
     const act = e.target.closest(".cmt-act");
@@ -2143,6 +2677,7 @@ async function renderCommentsPanel(slot, anchor, opts = {}) {
           try { await apiJson("/api/comments", "POST", { body: t, parent: id }); refresh(); }
           catch (err) { alert(err.message); }
         });
+        bindMentionAutocomplete(holder.querySelector("textarea"));
         holder.querySelector("textarea").focus();
       } else if (act.dataset.act === "edit") {
         const cmt = act.closest(".cmt");
@@ -2339,9 +2874,11 @@ registerRoute(/^#\/my\/(\d+)$/, async (view, m) => {
         <button id="delete-cl" class="toolbtn danger" ${c.files.length || c.shelved ? "disabled" : ""}>Delete changelist</button>
       </div>
       ${c.shelved ? '<p class="muted" style="margin-top:8px">This changelist has a shelf on the server. Unshelve restores it into the workspace (overwrites unsaved edits); Delete shelf discards it.</p>' : ""}
+      <div id="my-review"></div>
       <div id="my-comments"></div>
     </div>`;
 
+  renderReviewBar($("#my-review", view), change);
   renderCommentsPanel($("#my-comments", view), { change });
 
   const refresh = () => route();

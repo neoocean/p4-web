@@ -1190,6 +1190,7 @@ class CommentPatch(BaseModel):
 def list_comments(
     path: str | None = None,
     change: int | None = None,
+    files: bool = False,
     p4web_session: str | None = Cookie(default=None),
 ):
     require_session(p4web_session)
@@ -1197,7 +1198,7 @@ def list_comments(
         raise HTTPException(status_code=400, detail="path or change filter required")
     if path and not path.startswith("//"):
         raise HTTPException(status_code=400, detail="Path must start with //")
-    return {"comments": sessions.comments_for(path=path, change=change)}
+    return {"comments": sessions.comments_for(path=path, change=change, files=files)}
 
 
 @app.post("/api/comments")
@@ -1208,6 +1209,7 @@ def add_comment(body: CommentBody, p4web_session: str | None = Cookie(default=No
         raise HTTPException(status_code=400, detail="Empty comment")
     if len(text.encode()) > MAX_COMMENT_BYTES:
         raise HTTPException(status_code=413, detail="Comment too long")
+    mentioned = _resolve_mentions(text, session["user"], session["user"], session["ticket"])
     if body.parent is not None:
         parent = sessions.comment_get(body.parent)
         if not parent or parent.get("parent"):
@@ -1217,19 +1219,25 @@ def add_comment(body: CommentBody, p4web_session: str | None = Cookie(default=No
             path=parent["path"], rev=parent["rev"], line=parent["line"],
             change=parent["change"], parent=body.parent,
         )
-        return {"id": cid}
+        sessions.mentions_add(cid, mentioned)
+        return {"id": cid, "mentioned": mentioned}
     if body.path:
         if not body.path.startswith("//"):
             raise HTTPException(status_code=400, detail="Path must start with //")
         if body.line is not None and body.line < 1:
             raise HTTPException(status_code=400, detail="Invalid line")
+        # A comment made inside a changelist's diff carries both anchors,
+        # so it reads on the file page and on the changelist page.
         cid = sessions.comment_add(
             session["user"], text, path=body.path, rev=body.rev, line=body.line,
+            change=body.change,
         )
-        return {"id": cid}
+        sessions.mentions_add(cid, mentioned)
+        return {"id": cid, "mentioned": mentioned}
     if body.change is not None:
         cid = sessions.comment_add(session["user"], text, change=body.change)
-        return {"id": cid}
+        sessions.mentions_add(cid, mentioned)
+        return {"id": cid, "mentioned": mentioned}
     raise HTTPException(status_code=400, detail="A comment needs a path, change, or parent anchor")
 
 
@@ -1252,6 +1260,11 @@ def edit_comment(
         if len(text.encode()) > MAX_COMMENT_BYTES:
             raise HTTPException(status_code=413, detail="Comment too long")
         sessions.comment_update(cid, body=text)
+        # The edited body is the whole truth about who is mentioned:
+        # names added get a mention, names dropped lose theirs.
+        sessions.mentions_replace(
+            cid, _resolve_mentions(text, session["user"], session["user"], session["ticket"])
+        )
     if body.resolved is not None:
         # Resolve/reopen: anyone, thread roots only.
         if comment["parent"]:
@@ -1269,6 +1282,207 @@ def delete_comment(cid: int, p4web_session: str | None = Cookie(default=None)):
     if comment["user"] != session["user"]:
         raise HTTPException(status_code=403, detail="You can only delete your own comments")
     sessions.comment_delete(cid)
+    sessions.mentions_drop(cid)
+    return {"ok": True}
+
+
+@app.get("/api/comments/counts")
+def comment_counts(
+    changes: str | None = None,
+    dir: str | None = None,
+    p4web_session: str | None = Cookie(default=None),
+):
+    """Open/total thread counts, for the badges on listing rows.
+
+    `changes` is a comma-separated changelist list; `dir` is a depot
+    directory whose immediate files are counted. Both read only the
+    app's own comment store — a comment is visible to anyone who can
+    reach the app, exactly as the panels already are."""
+    require_session(p4web_session)
+    if changes:
+        try:
+            nums = [int(c) for c in changes.split(",") if c.strip()][:500]
+        except ValueError:
+            raise HTTPException(status_code=400, detail="changes must be numbers")
+        return {"counts": sessions.comment_counts_for_changes(nums)}
+    if dir:
+        if not dir.startswith("//"):
+            raise HTTPException(status_code=400, detail="Path must start with //")
+        return {"counts": sessions.comment_counts_for_dir(dir)}
+    raise HTTPException(status_code=400, detail="changes or dir required")
+
+
+# ---------- @mentions ----------
+#
+# Naming someone in a comment gives them a row in `mentions`, which is
+# what the topbar badge counts. Names are checked against the Perforce
+# user list so a typo (or an email-looking string) doesn't create a
+# mention nobody will ever read; the list is cached briefly because a
+# busy thread would otherwise run `p4 users` per comment.
+
+_USER_CACHE = {"names": None, "at": 0.0}
+_USER_CACHE_TTL = 300
+
+
+def _known_users(user, ticket):
+    now = time.time()
+    if _USER_CACHE["names"] is None or now - _USER_CACHE["at"] > _USER_CACHE_TTL:
+        records = p4_call(p4.run, ["users"], user, ticket)
+        _USER_CACHE["names"] = {r["User"] for r in records if r.get("User")}
+        _USER_CACHE["at"] = now
+    return _USER_CACHE["names"]
+
+
+def _resolve_mentions(body, author, user, ticket):
+    """Real users named in `body`, minus the author (nobody needs a badge
+    for their own comment)."""
+    names = sessions.mention_names(body)
+    if not names:
+        return []
+    try:
+        known = _known_users(user, ticket)
+    except HTTPException:
+        return []
+    return [n for n in names if n in known and n != author]
+
+
+class MentionsSeen(BaseModel):
+    ids: list[int] | None = None
+
+
+@app.get("/api/mentions")
+def list_mentions(
+    unseen: bool = False,
+    max: int = 100,
+    p4web_session: str | None = Cookie(default=None),
+):
+    session = require_session(p4web_session)
+    return {
+        "mentions": sessions.mentions_for(
+            session["user"], unseen_only=unseen, limit=min(max, 500)
+        ),
+        "unseen": sessions.mentions_unseen_count(session["user"]),
+    }
+
+
+@app.post("/api/mentions/seen")
+def mark_mentions_seen(
+    body: MentionsSeen, p4web_session: str | None = Cookie(default=None),
+):
+    session = require_session(p4web_session)
+    sessions.mentions_mark_seen(session["user"], body.ids)
+    return {"unseen": sessions.mentions_unseen_count(session["user"])}
+
+
+# ---------- light reviews ----------
+#
+# A review is a state flag plus a history on top of a changelist —
+# usually a pending one with shelved files, which is how you circulate
+# work here before it is submitted. Perforce stores none of it; the
+# state lives beside the comments in the app DB.
+#
+# Anyone who can see the changelist can move it to any state, including
+# its author. The event log makes that legible: every transition records
+# who made it, so "approved" always says approved-by-whom.
+
+MAX_REVIEW_NOTE_BYTES = 4 * 1024
+
+
+class ReviewBody(BaseModel):
+    state: str
+    note: str | None = None
+
+
+def _change_summary(change: int, user: str, ticket: str):
+    """Changelist header for a review row, via the requesting user's own
+    ticket — a change they cannot see 404s here just like anywhere else."""
+    records = p4_call(p4.run, ["describe", "-s", str(change)], user, ticket)
+    if not records:
+        raise HTTPException(status_code=404, detail="Change not found")
+    r = records[0]
+    return {
+        "change": int(r["change"]),
+        "user": r.get("user", ""),
+        "status": r.get("status", ""),
+        "time": int(r.get("time", 0)),
+        "desc": r.get("desc", "").rstrip(),
+    }
+
+
+@app.get("/api/reviews")
+def list_reviews(
+    state: str | None = None,
+    max: int = 100,
+    p4web_session: str | None = Cookie(default=None),
+):
+    """Reviews, newest activity first, each with its changelist header.
+
+    The headers come from one `p4 describe -s` over the whole batch, so
+    the list costs a single p4 call — and changes the user cannot see
+    drop out of it, since describe simply returns nothing for them."""
+    session = require_session(p4web_session)
+    if state is not None and state not in sessions.REVIEW_STATES:
+        raise HTTPException(status_code=400, detail="Unknown review state")
+    max = min(max, 500)
+    reviews = sessions.reviews_list(state=state, limit=max)
+    if not reviews:
+        return {"reviews": []}
+    args = ["describe", "-s"] + [str(r["change"]) for r in reviews]
+    records = p4_call(p4.run, args, session["user"], session["ticket"])
+    heads = {
+        int(r["change"]): {
+            "user": r.get("user", ""),
+            "status": r.get("status", ""),
+            "time": int(r.get("time", 0)),
+            "desc": r.get("desc", "").rstrip(),
+        }
+        for r in records if r.get("change")
+    }
+    out = [dict(r, **heads[r["change"]]) for r in reviews if r["change"] in heads]
+    return {"reviews": out}
+
+
+@app.get("/api/review/{change}")
+def get_review(change: int, p4web_session: str | None = Cookie(default=None)):
+    session = require_session(p4web_session)
+    _change_summary(change, session["user"], session["ticket"])
+    return {
+        "review": sessions.review_get(change),
+        "events": sessions.review_events(change),
+    }
+
+
+@app.post("/api/review/{change}")
+def set_review(
+    change: int, body: ReviewBody,
+    p4web_session: str | None = Cookie(default=None),
+):
+    session = require_session(p4web_session)
+    if body.state not in sessions.REVIEW_STATES:
+        raise HTTPException(status_code=400, detail="Unknown review state")
+    note = (body.note or "").strip() or None
+    if note and len(note.encode()) > MAX_REVIEW_NOTE_BYTES:
+        raise HTTPException(status_code=413, detail="Note too long")
+    # Proves the changelist exists and that this user can see it.
+    _change_summary(change, session["user"], session["ticket"])
+    review = sessions.review_set(change, session["user"], body.state, note)
+    return {"review": review, "events": sessions.review_events(change)}
+
+
+@app.delete("/api/review/{change}")
+def drop_review(change: int, p4web_session: str | None = Cookie(default=None)):
+    """Withdraw a review entirely (the flag and its history). Available
+    to whoever opened it."""
+    session = require_session(p4web_session)
+    review = sessions.review_get(change)
+    if not review:
+        raise HTTPException(status_code=404, detail="No review on this change")
+    if review["openedBy"] != session["user"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the person who opened the review can withdraw it",
+        )
+    sessions.review_delete(change)
     return {"ok": True}
 
 
