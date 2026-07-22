@@ -148,6 +148,27 @@ COMMENTS = [
      "body": "Confirmed on the bench rig — job000412 can close."},
 ]
 
+FOLDER_DIFF = {
+    "left": "//rocket/engine/telemetry@4700",
+    "right": "//rocket/engine/telemetry",
+    "truncated": False,
+    "pairs": [
+        {"status": "content", "leftFile": "//rocket/engine/telemetry/uplink.py",
+         "leftRev": 11, "rightFile": "//rocket/engine/telemetry/uplink.py",
+         "rightRev": 14},
+        {"status": "content", "leftFile": "//rocket/engine/telemetry/session.py",
+         "leftRev": 6, "rightFile": "//rocket/engine/telemetry/session.py",
+         "rightRev": 7},
+        {"status": "types", "leftFile": "//rocket/engine/telemetry/schema.json",
+         "leftRev": 3, "rightFile": "//rocket/engine/telemetry/schema.json",
+         "rightRev": 4},
+        {"status": "right only", "leftFile": None, "leftRev": None,
+         "rightFile": "//rocket/engine/telemetry/backoff.py", "rightRev": 2},
+        {"status": "left only", "leftFile": "//rocket/engine/telemetry/retry_timer.py",
+         "leftRev": 9, "rightFile": None, "rightRev": None},
+    ],
+}
+
 BROWSE_ROOT = {
     "path": "",
     "dirs": [{"path": "//rocket", "name": "rocket"},
@@ -191,6 +212,8 @@ def handle(route, request):
         return send(FAVORITES)
     if path == "/api/browse":
         return send(BROWSE_ROOT)
+    if path == "/api/folderdiff":
+        return send(FOLDER_DIFF)
     if path == "/api/search":
         return send(SEARCH_CONTENT)
     if path.startswith("/api/change/"):
@@ -262,6 +285,14 @@ with sync_playwright() as p:
     page.wait_for_selector(".diff-row:not(.hidden) .diff-line, .diff-row:not(.hidden) pre",
                            timeout=15000)
     shot(page, "change")
+
+    # --- folder diff: one directory against its own older state ---
+    page.evaluate(
+        "location.hash = '#/folderdiff?left=' + "
+        "encodeURIComponent('//rocket/engine/telemetry@4700') + '&right=' + "
+        "encodeURIComponent('//rocket/engine/telemetry')")
+    page.wait_for_selector(".listing tbody tr", timeout=15000)
+    shot(page, "folderdiff")
 
     # --- More menu open over the Jobs browser ---
     page.evaluate("location.hash = '#/jobs'")

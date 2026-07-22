@@ -149,8 +149,8 @@
       <h2>Compare revisions</h2>
       <p class="kicker">Unified and side-by-side views everywhere a diff
         appears; the toggle remembers your preference. Pick arbitrary
-        revision pairs from the History tab, or diff whole directory trees
-        with Folder diff (optionally pinned to an @change or @date).</p>
+        revision pairs from the History tab — or compare whole directory
+        trees, which is the next step.</p>
       <figure class="shot">
         <img src="./assets/guide-diff.png" alt="Side-by-side diff of two revisions with added and removed lines highlighted" width="1180" height="780" loading="lazy">
         <figcaption>Diff — side-by-side, arbitrary revision pairs</figcaption>
@@ -158,10 +158,31 @@
     </div>
   </section>
 
+  <section class="cl" id="folderdiff">
+    <div class="gutter">
+      <div class="clno">p4 diff2 -q</div>
+      <div class="clmeta">step 6</div>
+    </div>
+    <div class="content">
+      <h2>Compare whole trees</h2>
+      <p class="kicker">Folder diff (under <strong>More</strong>, or the button on
+        any directory) takes two depot paths and reports what differs across
+        them: files that changed on both sides, files that exist on only one,
+        and type changes. Either side may carry an <span class="mono">@change</span>
+        or <span class="mono">@date</span> suffix, so the same path compared
+        against its own past answers “what has this directory done since the
+        release?” Every differing row links straight to the file diff.</p>
+      <figure class="shot">
+        <img src="./assets/guide-folderdiff.png" alt="Folder diff comparing a directory against an older changelist: rows marked differs, type differs, left only, and right only" width="1180" height="378" loading="lazy">
+        <figcaption>Folder diff — a directory against its own older state</figcaption>
+      </figure>
+    </div>
+  </section>
+
   <section class="cl" id="changes">
     <div class="gutter">
       <div class="clno">p4 changes</div>
-      <div class="clmeta">step 6</div>
+      <div class="clmeta">step 7</div>
     </div>
     <div class="content">
       <h2>Find changes</h2>
@@ -181,7 +202,7 @@
   <section class="cl" id="change">
     <div class="gutter">
       <div class="clno">p4 describe</div>
-      <div class="clmeta">step 7</div>
+      <div class="clmeta">step 8</div>
     </div>
     <div class="content">
       <h2>Read a changelist</h2>
@@ -202,7 +223,7 @@
   <section class="cl" id="write">
     <div class="gutter">
       <div class="clno">p4 submit</div>
-      <div class="clmeta">step 8</div>
+      <div class="clmeta">step 9</div>
     </div>
     <div class="content">
       <h2>Edit and submit</h2>
@@ -228,7 +249,7 @@
   <section class="cl" id="search">
     <div class="gutter">
       <div class="clno">p4 grep</div>
-      <div class="clmeta">step 9</div>
+      <div class="clmeta">step 10</div>
     </div>
     <div class="content">
       <h2>Search the depot</h2>
@@ -249,15 +270,14 @@
   <section class="cl" id="more">
     <div class="gutter">
       <div class="clno">p4 labels …</div>
-      <div class="clmeta">step 10</div>
+      <div class="clmeta">step 11</div>
     </div>
     <div class="content">
       <h2>Everything else lives under More</h2>
       <p class="kicker">Labels with their tagged files, jobs with the fixes that
         closed them, branch mappings, streams with their parents, and users
         &amp; groups — the P4V metadata browsers, one menu away. Folder diff
-        lives here too: point it at two depot paths and it reports what only
-        exists on one side and what differs on both.</p>
+        (step 6) lives here too.</p>
       <figure class="shot">
         <img src="./assets/guide-more.png" alt="Jobs browser with the More menu open, listing Labels, Jobs, Branches, Streams, Users and Groups, and Folder diff" width="1180" height="320" loading="lazy">
         <figcaption>More — metadata browsers, here over the jobs list</figcaption>

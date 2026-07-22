@@ -148,8 +148,8 @@
       <h2>리비전 비교</h2>
       <p class="kicker">디프가 나오는 모든 곳에서 unified와 side-by-side를
         지원하며, 토글은 선호를 기억합니다. History 탭에서 임의의 리비전 쌍을
-        고르거나, Folder diff로 디렉터리 트리 전체를 비교할 수 있습니다
-        (@change나 @date로 고정 가능).</p>
+        고를 수 있습니다. 디렉터리 트리 전체를 비교하는 방법은 다음 단계에서
+        다룹니다.</p>
       <figure class="shot">
         <img src="../assets/guide-diff.png" alt="추가·삭제 줄이 하이라이트된 두 리비전의 side-by-side 디프" width="1180" height="780" loading="lazy">
         <figcaption>디프 — side-by-side, 임의 리비전 쌍</figcaption>
@@ -157,10 +157,31 @@
     </div>
   </section>
 
+  <section class="cl" id="folderdiff">
+    <div class="gutter">
+      <div class="clno">p4 diff2 -q</div>
+      <div class="clmeta">6단계</div>
+    </div>
+    <div class="content">
+      <h2>디렉토리 통째로 비교</h2>
+      <p class="kicker">폴더 diff(<strong>More</strong> 메뉴 또는 디렉토리 화면의
+        버튼)는 디팟 경로 두 개를 받아 무엇이 다른지 알려준다. 양쪽 모두에서
+        바뀐 파일, 한쪽에만 있는 파일, 타입이 달라진 파일이 각각 표시된다.
+        어느 쪽이든 <span class="mono">@체인지</span>나
+        <span class="mono">@날짜</span> 서픽스를 붙일 수 있어서, 같은 경로를
+        자기 과거와 비교하면 “이 디렉토리가 릴리스 이후 무엇을 했나”를 그대로
+        볼 수 있다. 다른 파일 행은 바로 파일 diff로 이어진다.</p>
+      <figure class="shot">
+        <img src="../assets/guide-folderdiff.png" alt="디렉토리를 예전 체인지리스트와 비교한 폴더 diff — 내용 다름, 타입 다름, 왼쪽에만, 오른쪽에만 행" width="1180" height="378" loading="lazy">
+        <figcaption>폴더 diff — 디렉토리를 자기 과거와 비교</figcaption>
+      </figure>
+    </div>
+  </section>
+
   <section class="cl" id="changes">
     <div class="gutter">
       <div class="clno">p4 changes</div>
-      <div class="clmeta">6단계</div>
+      <div class="clmeta">7단계</div>
     </div>
     <div class="content">
       <h2>체인지 찾기</h2>
@@ -179,7 +200,7 @@
   <section class="cl" id="change">
     <div class="gutter">
       <div class="clno">p4 describe</div>
-      <div class="clmeta">7단계</div>
+      <div class="clmeta">8단계</div>
     </div>
     <div class="content">
       <h2>체인지리스트 읽기</h2>
@@ -199,7 +220,7 @@
   <section class="cl" id="write">
     <div class="gutter">
       <div class="clno">p4 submit</div>
-      <div class="clmeta">8단계</div>
+      <div class="clmeta">9단계</div>
     </div>
     <div class="content">
       <h2>편집과 서브밋</h2>
@@ -225,7 +246,7 @@
   <section class="cl" id="search">
     <div class="gutter">
       <div class="clno">p4 grep</div>
-      <div class="clmeta">9단계</div>
+      <div class="clmeta">10단계</div>
     </div>
     <div class="content">
       <h2>디포 검색</h2>
@@ -245,14 +266,13 @@
   <section class="cl" id="more">
     <div class="gutter">
       <div class="clno">p4 labels …</div>
-      <div class="clmeta">10단계</div>
+      <div class="clmeta">11단계</div>
     </div>
     <div class="content">
       <h2>나머지는 More 메뉴에</h2>
       <p class="kicker">태그된 파일까지 보이는 레이블, 닫은 픽스가 함께 나오는 잡,
         브랜치 매핑, 부모가 표시되는 스트림, 사용자 &amp; 그룹 — P4V의 메타데이터
-        브라우저들이 메뉴 하나 아래에 있습니다. 폴더 디프도 여기 있습니다: 디포 경로
-        두 개를 지정하면 한쪽에만 있는 것과 양쪽에서 다른 것을 정리해 줍니다.</p>
+        브라우저들이 메뉴 하나 아래에 있습니다. 폴더 diff(6단계)도 여기 있습니다.</p>
       <figure class="shot">
         <img src="../assets/guide-more.png" alt="Labels·Jobs·Branches·Streams·Users and Groups·Folder diff가 있는 More 메뉴가 열린 잡 브라우저" width="1180" height="320" loading="lazy">
         <figcaption>More — 메타데이터 브라우저, 여기서는 잡 목록 위에서</figcaption>
