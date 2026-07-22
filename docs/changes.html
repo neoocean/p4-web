@@ -67,8 +67,9 @@
       <div class="clmeta">day 7</div>
     </div>
     <div class="content">
-      <h2>Cancelled downloads let go of the server</h2>
+      <h2>Front matter reads as data; cancelled downloads let go of the server</h2>
       <ul class="chg-list">
+        <li><span class="chg-cl">66448</span><span class="chg-title">A markdown file that starts with a YAML front-matter block now shows it as a tidy metadata table instead of a run-together paragraph <span class="chg-note">(the block used to render as a rule plus prose, with keys like <code>first_seen_build</code> losing their underscores to italics; it is now a collapsible table, and a file opening with a genuine horizontal rule is left alone)</span></span></li>
         <li><span class="chg-cl">66380</span><span class="chg-title">Navigating away from a page of image previews no longer strands file readers on the Perforce server — a cancelled download now closes its <code>p4 print</code> instead of leaving it connected <span class="chg-note">(the streamed reader is reaped on client disconnect, not only on normal completion; stray readers had been piling up as IDLE connections that held a server slot until the app was restarted)</span></span></li>
       </ul>
     </div>
