@@ -61,6 +61,19 @@
       <a href="https://github.com/neoocean/p4-web">GitHub</a>.</p>
   </header>
 
+  <section class="cl" id="d-2026-07-22">
+    <div class="gutter">
+      <div class="clno">2026-07-22</div>
+      <div class="clmeta">day 7</div>
+    </div>
+    <div class="content">
+      <h2>Cancelled downloads let go of the server</h2>
+      <ul class="chg-list">
+        <li><span class="chg-cl">66380</span><span class="chg-title">Navigating away from a page of image previews no longer strands file readers on the Perforce server — a cancelled download now closes its <code>p4 print</code> instead of leaving it connected <span class="chg-note">(the streamed reader is reaped on client disconnect, not only on normal completion; stray readers had been piling up as IDLE connections that held a server slot until the app was restarted)</span></span></li>
+      </ul>
+    </div>
+  </section>
+
   <section class="cl" id="d-2026-07-20">
     <div class="gutter">
       <div class="clno">2026-07-20</div>
