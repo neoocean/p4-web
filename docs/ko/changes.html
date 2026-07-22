@@ -69,6 +69,7 @@
     <div class="content">
       <h2>머리말은 표로, 취소한 다운로드는 서버 연결을 놓습니다</h2>
       <ul class="chg-list">
+        <li><span class="chg-cl">66451</span><span class="chg-title">휴대폰에서 좌우 비교 diff의 줄이 제자리에 맞음 — 한쪽 창이 눌리면서 반대쪽 줄 사이에 빈 공간이 생기던 것이 사라지고 두 창이 같은 폭을 가짐 <span class="chg-note">(표의 열 폭을 명시적으로 지정해 긴 파일 헤더가 표를 화면 밖으로 늘리지 않는다; 줄간격을 좁히고, 좁은 화면에서는 줄번호 칸의 폭을 본문에 넘긴다)</span></span></li>
         <li><span class="chg-cl">66448</span><span class="chg-title">YAML 머리말(front matter)로 시작하는 마크다운 파일이 이제 그 부분을 깔끔한 메타데이터 표로 보여줌 — 한 문단으로 뭉개지지 않음 <span class="chg-note">(이전에는 구분선 하나와 산문 한 덩어리로 렌더링되면서 <code>first_seen_build</code> 같은 키의 밑줄이 이탤릭으로 먹혔다; 이제 접을 수 있는 표로 나오고, 진짜 구분선으로 시작하는 파일은 그대로 둔다)</span></span></li>
         <li><span class="chg-cl">66380</span><span class="chg-title">이미지 미리보기가 가득한 페이지에서 벗어나도 Perforce 서버에 파일 리더가 남지 않음 — 취소된 다운로드가 이제 <code>p4 print</code>를 닫고 연결을 놓아줌 <span class="chg-note">(스트리밍 리더를 정상 완료뿐 아니라 클라이언트 접속 종료 시에도 회수한다; 이전에는 남은 리더가 IDLE 연결로 쌓여 앱을 재시작하기 전까지 서버 슬롯을 붙잡고 있었다)</span></span></li>
       </ul>
