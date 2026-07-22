@@ -771,11 +771,43 @@ function retryOnError(img, tries = 3) {
   });
 }
 
+function splitFrontMatter(md) {
+  /* A leading YAML block is metadata, not prose: marked would turn it
+     into an <hr> plus a paragraph where underscores become italics. Peel
+     it off so the reader gets a table instead of mangled text. */
+  const m = /^﻿?---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(md);
+  if (!m) return [null, md];
+  const fields = [];
+  for (const line of m[1].split(/\r?\n/)) {
+    if (!line.trim() || /^\s*#/.test(line)) continue;
+    const kv = /^([A-Za-z0-9_.-]+)\s*:\s*(.*)$/.exec(line);
+    if (kv) fields.push([kv[1], kv[2].trim()]);
+    else if (fields.length) {
+      // Continuation: nested map entry or list item under the last key.
+      const prev = fields[fields.length - 1];
+      prev[1] = prev[1] ? `${prev[1]} ${line.trim()}` : line.trim();
+    } else return [null, md];  // not a key/value block — leave it alone
+  }
+  if (!fields.length) return [null, md];
+  return [fields, md.slice(m[0].length)];
+}
+
+function frontMatterHtml(fields) {
+  const rows = fields
+    .map(([k, v]) => `<tr><th>${esc(k)}</th><td>${v ? esc(v) : '<span class="fm-empty">—</span>'}</td></tr>`)
+    .join("");
+  return `<details class="md-frontmatter" open>
+    <summary>Metadata</summary>
+    <table><tbody>${rows}</tbody></table>
+  </details>`;
+}
+
 function renderMarkdown(md, baseDir) {
   /* Depot content is untrusted: parse with marked, sanitize with
      DOMPurify, then fix up relative links/images against the file's
      directory. Returns an element. */
-  const raw = marked.parse(md, { async: false });
+  const [fm, body] = splitFrontMatter(md);
+  const raw = (fm ? frontMatterHtml(fm) : "") + marked.parse(body, { async: false });
   const clean = DOMPurify.sanitize(raw);
   const div = document.createElement("div");
   div.className = "md-body";
