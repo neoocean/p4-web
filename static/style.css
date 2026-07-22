@@ -82,6 +82,11 @@
 
 * { box-sizing: border-box; }
 
+/* The canvas, not just the page: iOS rubber-banding and any area past
+   the page box paint from <html>. With the background only on <body>,
+   overscrolling on a phone exposed the browser's own grey. */
+html { background: var(--bg); }
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -690,6 +695,11 @@ th.sortable:hover { color: var(--accent); }
   padding: 8px 0;
 }
 
+/* Rows are as wide as the widest line, not as wide as the viewport, so
+   an add/delete highlight keeps its colour when the diff is scrolled
+   sideways instead of stopping where the container ends. */
+.diff-lines { width: max-content; min-width: 100%; }
+
 .diff-line { padding: 0 14px; white-space: pre; }
 
 /* Unified rows carry both sides' line numbers so a diff line can be
@@ -729,7 +739,7 @@ th.sortable:hover { color: var(--accent); }
 .dl-panel-row > td { padding: 0 !important; white-space: normal; }
 /* The row is what the horizontal scroll moves, so it carries the
    stickiness; the panel inside just fills the visible width. */
-div.dl-panel-row { position: sticky; left: 0; width: 100%; }
+div.dl-panel-row { position: sticky; left: 0; }
 .dl-panel {
   /* The diff scrolls sideways; the thread should not. Sticking to the
      left edge with the container's own width keeps the composer on

@@ -214,8 +214,56 @@
         a comment thread hangs off the changelist itself: markdown bodies,
         one level of replies, resolve when the point is settled.</p>
       <figure class="shot">
-        <img src="./assets/guide-change.png" alt="Change detail page: description, file list with one diff expanded inline, and a comment thread" width="1180" height="1230" loading="lazy">
+        <img src="./assets/guide-change.png" alt="Change detail page: description, file list with one diff expanded inline, and a comment thread" width="1180" height="1536" loading="lazy">
         <figcaption>Change detail — inline diffs and a comment thread</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="cl" id="inline">
+    <div class="gutter">
+      <div class="clno">app-side</div>
+      <div class="clmeta">step 9</div>
+    </div>
+    <div class="content">
+      <h2>Comment where the code is</h2>
+      <p class="kicker">Every line of every diff carries its own anchor: hover a
+        line, hit the speech bubble in the gutter, and a thread opens under it —
+        markdown body, one level of replies, resolve when the point is settled.
+        Lines that already carry threads show the count, so you can see at a
+        glance where the conversation is. A thread opened inside a changelist's
+        diff is the same thread you see on the file's own page, and typing
+        <code>@name</code> pulls up your colleagues and puts the comment in
+        their mentions.</p>
+      <figure class="shot">
+        <img src="./assets/guide-inline-comment.png" alt="A changelist with one diff expanded and a comment thread open under line 90, plus the review bar and comment panel below" width="1180" height="1958" loading="lazy">
+        <figcaption>A thread anchored to line 90, opened from the diff itself</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="cl" id="review">
+    <div class="gutter">
+      <div class="clno">app-side</div>
+      <div class="clmeta">step 10</div>
+    </div>
+    <div class="content">
+      <h2>Reviews and mentions</h2>
+      <p class="kicker">Shelve a changelist, then mark it <em>in review</em>,
+        <em>approved</em>, or <em>needs work</em> from its page. The state is the
+        app's, not Perforce's — nothing about your changelist changes — and every
+        move is logged with who made it and an optional note, so “approved”
+        always says approved by whom. Anyone who can see the change can move it.
+        The Reviews page under <strong>More</strong> is the queue; the
+        <code>@</code> badge in the top bar is your own: comments that named you,
+        newest first, cleared when you read them.</p>
+      <figure class="shot">
+        <img src="./assets/guide-reviews.png" alt="Reviews list with approved, needs work, and in review states across three changelists" width="1180" height="320" loading="lazy">
+        <figcaption>Reviews — the queue, filtered by state</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="./assets/guide-mentions.png" alt="Mentions page listing comments that named you, with unread ones marked" width="1180" height="541" loading="lazy">
+        <figcaption>Mentions — where you were named, read or unread</figcaption>
       </figure>
     </div>
   </section>
@@ -223,7 +271,7 @@
   <section class="cl" id="write">
     <div class="gutter">
       <div class="clno">p4 submit</div>
-      <div class="clmeta">step 9</div>
+      <div class="clmeta">step 11</div>
     </div>
     <div class="content">
       <h2>Edit and submit</h2>
@@ -249,7 +297,7 @@
   <section class="cl" id="search">
     <div class="gutter">
       <div class="clno">p4 grep</div>
-      <div class="clmeta">step 10</div>
+      <div class="clmeta">step 12</div>
     </div>
     <div class="content">
       <h2>Search the depot</h2>
@@ -270,7 +318,7 @@
   <section class="cl" id="more">
     <div class="gutter">
       <div class="clno">p4 labels …</div>
-      <div class="clmeta">step 11</div>
+      <div class="clmeta">step 13</div>
     </div>
     <div class="content">
       <h2>Everything else lives under More</h2>

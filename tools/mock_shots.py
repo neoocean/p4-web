@@ -169,6 +169,74 @@ FOLDER_DIFF = {
     ],
 }
 
+# A thread anchored to a line of the diff above (new-side line 90, the
+# `retry_backoff = ...` line), which is what the in-diff panel shows.
+LINE_COMMENTS = [
+    {"id": 11, "user": "carol", "created": NOW - 2 * 3600, "updated": None,
+     "path": "//rocket/engine/telemetry/uplink.py", "rev": 14, "line": 90,
+     "change": 4821, "parent": None, "resolved": False, "deleted": False,
+     "body": "`2 ** attempt` overflows the cap only after 4 tries — worth a\n"
+             "comment saying MAX_BACKOFF is the real limit, not the shift."},
+    {"id": 12, "user": "alice", "created": NOW - 100 * 60, "updated": None,
+     "path": "//rocket/engine/telemetry/uplink.py", "rev": 14, "line": 90,
+     "change": 4821, "parent": 11, "resolved": False, "deleted": False,
+     "body": "Added — see the two lines above it. cc @dana, since the ground\n"
+             "console reads the same constant."},
+]
+
+REVIEW = {
+    "review": {"change": 4821, "state": "approved", "openedBy": "alice",
+               "created": NOW - 3 * 3600, "updated": NOW - 40 * 60,
+               "updatedBy": "bob"},
+    "events": [
+        {"id": 1, "user": "alice", "created": NOW - 3 * 3600, "state": "open",
+         "note": "Bench-rig soak is in the description; ready for eyes."},
+        {"id": 2, "user": "carol", "created": NOW - 2 * 3600, "state": "needs-work",
+         "note": "One naming nit on line 90, otherwise good."},
+        {"id": 3, "user": "bob", "created": NOW - 40 * 60, "state": "approved",
+         "note": None},
+    ],
+}
+
+REVIEWS = {"reviews": [
+    {"change": 4821, "state": "approved", "openedBy": "alice",
+     "created": NOW - 3 * 3600, "updated": NOW - 40 * 60, "updatedBy": "bob",
+     "user": "alice", "status": "pending", "time": NOW - 4 * 3600,
+     "desc": "Back off the telemetry uplink instead of hammering the link."},
+    {"change": 4816, "state": "needs-work", "openedBy": "dana",
+     "created": NOW - DAY, "updated": NOW - 5 * 3600, "updatedBy": "alice",
+     "user": "dana", "status": "pending", "time": NOW - 30 * 3600,
+     "desc": "Ground console: retry the telemetry socket on a clean close."},
+    {"change": 4809, "state": "open", "openedBy": "bob",
+     "created": NOW - 2 * DAY, "updated": NOW - 2 * DAY, "updatedBy": "bob",
+     "user": "bob", "status": "pending", "time": NOW - 2 * DAY,
+     "desc": "Pack the flight schema into the nightly artifact."},
+]}
+
+MENTIONS = {"unseen": 2, "mentions": [
+    {"id": 3, "seen": False, "created": NOW - 100 * 60,
+     "comment": dict(LINE_COMMENTS[1], user="alice")},
+    {"id": 2, "seen": False, "created": NOW - 5 * 3600,
+     "comment": {"id": 21, "user": "bob", "created": NOW - 5 * 3600,
+                 "updated": None, "path": None, "rev": None, "line": None,
+                 "change": 4816, "parent": None, "resolved": False,
+                 "deleted": False,
+                 "body": "@dana this is the socket close you hit last week — "
+                         "does the retry cover it?"}},
+    {"id": 1, "seen": True, "created": NOW - 2 * DAY,
+     "comment": {"id": 22, "user": "carol", "created": NOW - 2 * DAY,
+                 "updated": None, "path": "//rocket/tests/test_uplink.py",
+                 "rev": 3, "line": 57, "change": None, "parent": None,
+                 "resolved": False, "deleted": False,
+                 "body": "@dana can you confirm the cap here matches the "
+                         "console's constant?"}},
+]}
+
+COUNTS = {"counts": {
+    "4821": {"open": 3, "total": 4},
+    "4816": {"open": 1, "total": 1},
+}}
+
 BROWSE_ROOT = {
     "path": "",
     "dirs": [{"path": "//rocket", "name": "rocket"},
@@ -221,8 +289,24 @@ def handle(route, request):
     if path == "/api/diff":
         return send({"path": CHANGE["files"][0]["path"], "spec1": "#13",
                      "spec2": "#14", "diff": DIFF})
+    if path == "/api/comments/counts":
+        return send(COUNTS)
     if path == "/api/comments":
-        return send({"comments": COMMENTS})
+        # path= asks about one file; change=…&files=1 asks about a
+        # changelist and gets its file-anchored threads too.
+        if "path=" in q:
+            return send({"comments": LINE_COMMENTS})
+        return send({"comments": COMMENTS + LINE_COMMENTS})
+    if path == "/api/reviews":
+        return send(REVIEWS)
+    if path.startswith("/api/review/"):
+        return send(REVIEW)
+    if path == "/api/mentions":
+        return send(MENTIONS)
+    if path == "/api/mentions/seen":
+        # Opening the page marks them read; the fixture stays unread so
+        # re-runs produce the same picture.
+        return send({"unseen": MENTIONS["unseen"]})
     if path == "/api/changes":
         return send(FAV_CHANGES)
     if path.startswith("/api/index/"):
@@ -285,6 +369,25 @@ with sync_playwright() as p:
     page.wait_for_selector(".diff-row:not(.hidden) .diff-line, .diff-row:not(.hidden) pre",
                            timeout=15000)
     shot(page, "change")
+
+    # --- a thread opened on a line of that same diff ---
+    # The diff above is still expanded: re-setting the same hash would not
+    # re-route, and clicking the disclosure again would collapse it. The
+    # gutter buttons only fade in on hover, so click through the fade.
+    page.wait_for_selector(".dl-cmt.has-threads", state="attached", timeout=15000)
+    page.evaluate("document.querySelector('.dl-cmt.has-threads').click()")
+    page.wait_for_selector(".dl-panel", timeout=15000)
+    shot(page, "inline-comment")
+
+    # --- reviews list ---
+    page.evaluate("location.hash = '#/reviews'")
+    page.wait_for_selector(".listing tbody tr", timeout=15000)
+    shot(page, "reviews")
+
+    # --- mentions of you ---
+    page.evaluate("location.hash = '#/mentions'")
+    page.wait_for_selector(".mn-item", timeout=15000)
+    shot(page, "mentions")
 
     # --- folder diff: one directory against its own older state ---
     page.evaluate(

@@ -1169,13 +1169,19 @@ function parseUnifiedDiff(text) {
      numbers. Shared by the unified and side-by-side renderers so a line
      number means the same thing in either view. */
   const rows = [];
-  let lno = 0, rno = 0;
+  let lno = 0, rno = 0, inHunk = false;
   for (const l of text.replace(/\n$/, "").split("\n")) {
     if (l.startsWith("====")) {
+      inHunk = false;
+      rows.push({ kind: "file", text: l });
+    } else if (!inHunk && (l.startsWith("--- ") || l.startsWith("+++ "))) {
+      // The ---/+++ pair naming the two revisions. Only before the first
+      // hunk: inside one, a line may legitimately start that way (a
+      // markdown rule, say), and there it is a real deletion/addition.
       rows.push({ kind: "file", text: l });
     } else if (l.startsWith("@@")) {
       const m = l.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
-      if (m) { lno = Number(m[1]); rno = Number(m[2]); }
+      if (m) { lno = Number(m[1]); rno = Number(m[2]); inHunk = true; }
       rows.push({ kind: "hunk", text: l });
     } else if (l.startsWith("+")) {
       rows.push({ kind: "add", text: l.slice(1), newNo: rno++ });
@@ -1211,7 +1217,7 @@ function renderDiffText(text, anchor) {
     return `<div class="diff-line diff-${row.kind}"${row.newNo != null ? ` data-line="${row.newNo}"` : ""}>${
       diffGutterHtml(row, commentable)}<span class="dl-text">${esc(row.text) || " "}</span></div>`;
   });
-  return `${toggle}<div class="diff-view">${rows.join("")}</div>`;
+  return `${toggle}<div class="diff-view"><div class="diff-lines">${rows.join("")}</div></div>`;
 }
 
 function renderDiffSplit(text, anchor) {
@@ -1227,17 +1233,20 @@ function renderDiffSplit(text, anchor) {
       <td class="sp-num">${rno ?? ""}${btn}</td><td class="sp-code sp-${rcls}">${rtext == null ? "" : esc(rtext) || " "}</td>
     </tr>`);
   };
-  let lno = 0, rno = 0;
+  let lno = 0, rno = 0, inHunk = false;
   const lines = text.replace(/\n$/, "").split("\n");
   let i = 0;
   while (i < lines.length) {
     const l = lines[i];
-    if (l.startsWith("====")) {
+    if (l.startsWith("====") || (!inHunk && (l.startsWith("--- ") || l.startsWith("+++ ")))) {
+      // Same rule as the unified renderer: the ---/+++ pair is a header,
+      // not a one-line deletion and addition.
+      if (l.startsWith("====")) inHunk = false;
       out.push(`<tr><td colspan="4" class="sp-file">${esc(l)}</td></tr>`);
       i++;
     } else if (l.startsWith("@@")) {
       const m = l.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
-      if (m) { lno = Number(m[1]); rno = Number(m[2]); }
+      if (m) { lno = Number(m[1]); rno = Number(m[2]); inHunk = true; }
       out.push(`<tr><td colspan="4" class="sp-hunk">${esc(l)}</td></tr>`);
       i++;
     } else if (l.startsWith("-")) {
@@ -2391,6 +2400,13 @@ async function bindDiffComments(holder, anchor) {
     const holderRow = document.createElement(row.tagName === "TR" ? "tr" : "div");
     holderRow.className = "dl-panel-row";
     holderRow.innerHTML = row.tagName === "TR" ? `<td colspan="4">${inner}</td>` : inner;
+    if (row.tagName !== "TR") {
+      // Unified rows live in a max-content strip so their highlights
+      // survive a sideways scroll; the panel wants the visible width
+      // instead, which only the scroll container knows.
+      const scroller = holder.querySelector(".diff-view");
+      if (scroller) holderRow.style.width = `${scroller.clientWidth}px`;
+    }
     row.after(holderRow);
 
     const post = async (body, parent) => {
