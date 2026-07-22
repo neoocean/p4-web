@@ -681,7 +681,7 @@ th.sortable:hover { color: var(--accent); }
   border-radius: 8px;
   font-family: var(--mono);
   font-size: 12.5px;
-  line-height: 1.55;
+  line-height: 1.45;
   overflow-x: auto;
   padding: 8px 0;
 }
@@ -715,24 +715,33 @@ th.sortable:hover { color: var(--accent); }
 .diff-toggle button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 
 .split-table {
+  /* Fixed layout keeps the two code columns the same width. Under auto
+     layout `break-all` lets one side collapse to a sliver and wrap over
+     many lines, which — with top-aligned cells — reads as huge blank
+     gaps between the lines of the other side. */
+  table-layout: fixed;
   border-collapse: collapse;
   width: 100%;
   font-family: var(--mono);
   font-size: 12.5px;
-  line-height: 1.55;
+  line-height: 1.45;
 }
+
+.split-table col.sp-c-num { width: 3.6em; }
+.split-table col.sp-c-code { width: auto; }
 
 .sp-num {
   text-align: right;
   color: #9ca3af;
   padding: 0 8px;
   user-select: none;
-  width: 1%;
   border-right: 1px solid var(--border);
   vertical-align: top;
 }
 
-.sp-code { white-space: pre-wrap; word-break: break-all; padding: 0 10px; width: 49%; vertical-align: top; }
+.sp-file, .sp-hunk { overflow-wrap: anywhere; }
+
+.sp-code { white-space: pre-wrap; overflow-wrap: anywhere; padding: 0 10px; vertical-align: top; }
 .sp-add { background: var(--diff-add); }
 .sp-del { background: var(--diff-del); }
 .sp-empty { background: var(--subtle); }
@@ -1334,6 +1343,11 @@ dialog textarea { font-family: var(--mono); }
   .file-meta { flex-wrap: wrap; gap: 8px 12px; }
 
   .code-view pre, .annotate, .diff-view, .split-table { font-size: 11.5px; }
+
+  /* Two panes on a phone: give the code the width, not the gutters. */
+  .split-table col.sp-c-num { width: 2.6em; }
+  .split-table .sp-num { padding: 0 4px; }
+  .split-table .sp-code { padding: 0 6px; }
   .timelapse input[type="range"] { width: 140px; }
 
   .login-card { width: calc(100vw - 48px); max-width: 320px; padding: 24px; }

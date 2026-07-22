@@ -1174,7 +1174,12 @@ function renderDiffSplit(text) {
       i++;
     }
   }
-  return `<div class="diff-view split-view"><table class="split-table">${out.join("")}</table></div>`;
+  /* The colgroup is load-bearing: under table-layout:fixed the column
+     widths come from the first row, and that row is the colspan=4 file
+     header — without explicit cols the four columns end up equal (or,
+     in Safari, overlapping). */
+  const cols = `<colgroup><col class="sp-c-num"><col class="sp-c-code"><col class="sp-c-num"><col class="sp-c-code"></colgroup>`;
+  return `<div class="diff-view split-view"><table class="split-table">${cols}${out.join("")}</table></div>`;
 }
 
 /* ---------- revision graph ---------- */
