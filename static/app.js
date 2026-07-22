@@ -1089,23 +1089,44 @@ function diffViewPref() {
   return localStorage.getItem("diffView") || "unified";
 }
 
+// Two code columns need room to be worth it: below the mobile breakpoint each
+// side is barely 130px, so we ignore a stored "split" and render unified. The
+// preference itself is untouched — widening the window brings split back.
+const narrowScreen = matchMedia("(max-width: 768px)");
+
+function diffViewMode() {
+  return narrowScreen.matches ? "unified" : diffViewPref();
+}
+
 function diffToggleHtml() {
-  const pref = diffViewPref();
-  return `<div class="diff-toggle">
-    <button data-mode="unified" class="${pref === "unified" ? "on" : ""}">Unified</button>
-    <button data-mode="split" class="${pref === "split" ? "on" : ""}">Side by side</button>
+  const mode = diffViewMode();
+  const tight = narrowScreen.matches;
+  const splitAttrs = tight
+    ? ' disabled title="Side by side needs a wider window"'
+    : "";
+  return `<div class="diff-toggle${tight ? " tight" : ""}">
+    <button data-mode="unified" class="${mode === "unified" ? "on" : ""}">Unified</button>
+    <button data-mode="split" class="${mode === "split" ? "on" : ""}"${splitAttrs}>Side by side</button>
   </div>`;
 }
+
+function rerenderDiffs() {
+  // Re-render every diff block that stored its raw text.
+  for (const holder of document.querySelectorAll("[data-diff-raw]")) {
+    holder.innerHTML = renderDiffText(holder.dataset.diffRaw);
+    bindDiffToggles(holder);
+  }
+}
+
+// Rotating a phone or dragging a window across the breakpoint switches the
+// effective mode, so the rendered diffs have to follow.
+narrowScreen.addEventListener("change", rerenderDiffs);
 
 function bindDiffToggles(container) {
   for (const btn of container.querySelectorAll(".diff-toggle button")) {
     btn.addEventListener("click", () => {
       localStorage.setItem("diffView", btn.dataset.mode);
-      // Re-render every diff block that stored its raw text.
-      for (const holder of document.querySelectorAll("[data-diff-raw]")) {
-        holder.innerHTML = renderDiffText(holder.dataset.diffRaw);
-        bindDiffToggles(holder);
-      }
+      rerenderDiffs();
     });
   }
 }
@@ -1118,7 +1139,7 @@ function diffBlockHtml(text) {
 function renderDiffText(text) {
   if (!text.trim()) return '<p class="notice">No differences.</p>';
   const toggle = diffToggleHtml();
-  if (diffViewPref() === "split") return toggle + renderDiffSplit(text);
+  if (diffViewMode() === "split") return toggle + renderDiffSplit(text);
   const rows = text.replace(/\n$/, "").split("\n").map((l) => {
     let cls = "ctx";
     if (l.startsWith("====")) cls = "file";

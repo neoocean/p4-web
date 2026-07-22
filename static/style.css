@@ -717,6 +717,9 @@ th.sortable:hover { color: var(--accent); }
 
 .diff-toggle button + button { border-left: 1px solid var(--border); }
 .diff-toggle button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+/* Side by side is off the table below the mobile breakpoint — two 130px code
+   columns are unreadable — so the button says so instead of disappearing. */
+.diff-toggle button:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .split-table {
   /* Fixed layout keeps the two code columns the same width. Under auto

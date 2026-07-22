@@ -440,6 +440,10 @@
 
   /* ---- deploy ---- */
   .deploy { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  /* A grid item defaults to min-width:auto, so the nowrap command line inside
+     each card stretched the card — and the whole page — past a phone screen.
+     The card holds its column; the command scrolls inside its own box. */
+  .deploy .card { min-width: 0; }
   @media (max-width: 720px) { .deploy { grid-template-columns: 1fr; } }
   .deploy .card h3 { font-family: var(--mono); font-size: 14px; }
   .deploy .card code.one {
@@ -539,7 +543,7 @@
 
   <section class="cl" id="read">
     <div class="gutter">
-      <div class="clno">CL 65134</div>
+      <div class="clno">CL 66462</div>
       <div class="clmeta">read-only core</div>
     </div>
     <div class="content">
@@ -562,7 +566,7 @@
 
   <section class="cl" id="write">
     <div class="gutter">
-      <div class="clno">CL 65170</div>
+      <div class="clno">CL 65181</div>
       <div class="clmeta">write ops</div>
     </div>
     <div class="content">
@@ -595,7 +599,7 @@
 
   <section class="cl" id="quickstart">
     <div class="gutter">
-      <div class="clno">CL 65139</div>
+      <div class="clno">CL 65217</div>
       <div class="clmeta">run.sh</div>
     </div>
     <div class="content">
@@ -616,7 +620,7 @@
 
   <section class="cl" id="security">
     <div class="gutter">
-      <div class="clno">CL 65207</div>
+      <div class="clno">CL 65319</div>
       <div class="clmeta">sec review</div>
     </div>
     <div class="content">
@@ -636,7 +640,7 @@
 
   <section class="cl" id="deploy">
     <div class="gutter">
-      <div class="clno">CL 65160</div>
+      <div class="clno">CL 65715</div>
       <div class="clmeta">deploy</div>
     </div>
     <div class="content">
@@ -657,8 +661,8 @@
 
   <section class="cl" id="arch">
     <div class="gutter">
-      <div class="clno">CL 65141</div>
-      <div class="clmeta">handoff</div>
+      <div class="clno">CL 65220</div>
+      <div class="clmeta">app layout</div>
     </div>
     <div class="content">
       <h2>Small enough to read</h2>
@@ -684,7 +688,7 @@ static/
 
   <footer>
     <span>p4-web — built in the open, one numbered changelist at a time.</span>
-    <span><a href="https://github.com/neoocean/p4-web">GitHub</a> · <a href="https://github.com/neoocean/p4-web/archive/refs/heads/main.zip">source .zip</a> · CL 65134 → 65719 · 2026</span>
+    <span><a href="https://github.com/neoocean/p4-web">GitHub</a> · <a href="https://github.com/neoocean/p4-web/archive/refs/heads/main.zip">source .zip</a> · CL 65134 → 66462 · 2026</span>
   </footer>
 
 </div>
