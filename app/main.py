@@ -20,6 +20,7 @@ from fastapi.responses import (
 )
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from starlette.background import BackgroundTask
 
 from . import p4, sessions, workspace
 from . import index as change_index  # avoid clashing with the def index() route
@@ -545,19 +546,34 @@ def raw_content(
         proc, first = p4_call(p4.print_open, spec, user, ticket)
     finally:
         _raw_slots.release()
-    name = path.rsplit("/", 1)[-1]
-    media = mimetypes.guess_type(name)[0] or "application/octet-stream"
-    disposition = "attachment" if download else "inline"
-    return StreamingResponse(
-        p4.print_drain(proc, first),
-        media_type=media,
-        headers={
-            "Content-Disposition": _content_disposition(disposition, name),
-            # Never execute depot content in the app's origin.
-            "Content-Security-Policy": "sandbox",
-            "X-Content-Type-Options": "nosniff",
-        },
-    )
+    # print_open() handed back a live subprocess. From here it MUST be
+    # reaped on every exit path, so build the response inside a guard: if
+    # anything below throws before the StreamingResponse owns the process,
+    # kill it here rather than leak it.
+    try:
+        name = path.rsplit("/", 1)[-1]
+        media = mimetypes.guess_type(name)[0] or "application/octet-stream"
+        disposition = "attachment" if download else "inline"
+        return StreamingResponse(
+            p4.print_drain(proc, first),
+            media_type=media,
+            # Guaranteed reaper. Starlette runs the background task after
+            # the response completes AND after a mid-stream client
+            # disconnect cancels it, so a browser that navigates away from
+            # a page of image previews can no longer strand `p4 print`
+            # processes as lingering IDLE p4d connections. Idempotent with
+            # print_drain()'s own finally on the happy path.
+            background=BackgroundTask(p4.terminate_stream, proc),
+            headers={
+                "Content-Disposition": _content_disposition(disposition, name),
+                # Never execute depot content in the app's origin.
+                "Content-Security-Policy": "sandbox",
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+    except Exception:
+        p4.terminate_stream(proc)
+        raise
 
 
 # ---------- history / diff / annotate ----------

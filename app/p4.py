@@ -256,13 +256,45 @@ def print_drain(proc, first):
                 break
             yield chunk
     finally:
-        for stream in (proc.stdout, proc.stderr):
-            try:
-                if stream:
-                    stream.close()
-            except Exception:
-                pass
-        proc.wait()
+        terminate_stream(proc)
+
+
+def terminate_stream(proc):
+    """Idempotently tear down a print_open() subprocess.
+
+    Safe to call whether or not the stream was fully drained, and safe to
+    call more than once. This is the single cleanup path for a streamed
+    `p4 print`: print_drain()'s finally calls it on the happy path, and
+    the /api/raw route attaches it as a response background task so it
+    also runs when a mid-stream client disconnect abandons the body
+    generator.
+
+    The kill matters. When a browser navigates away from a page full of
+    image previews it cancels every in-flight /api/raw at once; the
+    matching `p4 print` is then left writing into a stdout pipe nobody is
+    draining. Once the 64 KiB pipe fills it blocks in write() forever,
+    never exits, and keeps its p4d TCP connection ESTABLISHED — surfacing
+    as a lingering IDLE command in `p4 monitor show` that holds a server
+    process slot and an FD until the app is restarted. Killing the
+    process (and closing our read ends, which sends it EPIPE as a
+    backstop) lets it exit and release the connection."""
+    if proc is None:
+        return
+    try:
+        if proc.poll() is None:
+            proc.kill()
+    except Exception:
+        pass
+    for stream in (proc.stdout, proc.stderr):
+        try:
+            if stream is not None:
+                stream.close()
+        except Exception:
+            pass
+    try:
+        proc.wait(timeout=10)
+    except Exception:
+        pass
 
 
 def login(user, secret):
