@@ -61,6 +61,19 @@
       <a href="https://github.com/neoocean/p4-web">GitHub</a>.</p>
   </header>
 
+  <section class="cl" id="d-2026-07-24">
+    <div class="gutter">
+      <div class="clno">2026-07-24</div>
+      <div class="clmeta">day 9</div>
+    </div>
+    <div class="content">
+      <h2>Large files download again</h2>
+      <ul class="chg-list">
+        <li><span class="chg-cl">66839</span><span class="chg-title">A file over 100&nbsp;MB downloads again — the Download link no longer refuses it with <code>File too large</code> <span class="chg-note">(the size cap was only ever meant for the inline preview, which would pull the whole file into the page; a download streams straight from Perforce to your disk without ever buffering on the server, so its size no longer matters — the inline preview keeps the 100&nbsp;MB limit)</span></span></li>
+      </ul>
+    </div>
+  </section>
+
   <section class="cl" id="d-2026-07-22">
     <div class="gutter">
       <div class="clno">2026-07-22</div>
@@ -69,6 +82,7 @@
     <div class="content">
       <h2>Reviews, mentions, and comments where the code is</h2>
       <ul class="chg-list">
+        <li><span class="chg-cl">66478</span><span class="chg-title">The guided tour catches up to the app — a step for commenting inside a diff, and a step for reviews and <code>@mentions</code> <span class="chg-note">(two new steps with screenshots staged from the fictional depot; the landing page's architecture note was refreshed to match)</span></span></li>
         <li><span class="chg-cl">66477</span><span class="chg-title">A diff's <code>---</code>/<code>+++</code> header pair reads as a header again, instead of a red-and-green pair of edits numbered line 0</span></li>
         <li><span class="chg-cl">66476</span><span class="chg-title">On a phone, the background now covers the whole screen when you overscroll, and a diff scrolled sideways keeps its green and red across the full line <span class="chg-note">(the page background moved to the document root, and unified diff rows are as wide as the widest line rather than as wide as the window)</span></span></li>
         <li><span class="chg-cl">66472</span><span class="chg-title">A diff expanded inside a changelist no longer stretches the file list past the screen on a phone <span class="chg-note">(the cell takes the table's width and the code scrolls inside the diff, where it was always meant to; the comment panel stays put while you scroll)</span></span></li>

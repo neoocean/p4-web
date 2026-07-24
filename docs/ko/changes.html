@@ -61,6 +61,19 @@
       <a href="https://github.com/neoocean/p4-web">GitHub</a>에 미러링됩니다.</p>
   </header>
 
+  <section class="cl" id="d-2026-07-24">
+    <div class="gutter">
+      <div class="clno">2026-07-24</div>
+      <div class="clmeta">9일차</div>
+    </div>
+    <div class="content">
+      <h2>큰 파일도 다시 내려받기</h2>
+      <ul class="chg-list">
+        <li><span class="chg-cl">66839</span><span class="chg-title">100&nbsp;MB가 넘는 파일도 다시 내려받힘 — Download 링크가 <code>File too large</code>로 거부하던 문제 <span class="chg-note">(크기 제한은 원래 인라인 미리보기 전용이었다. 미리보기는 파일 전체를 페이지로 끌어오지만, 다운로드는 Perforce에서 디스크로 바로 스트리밍되어 서버 메모리에 쌓이지 않으므로 크기가 무관하다 — 인라인 미리보기에는 100&nbsp;MB 제한이 그대로 남는다)</span></span></li>
+      </ul>
+    </div>
+  </section>
+
   <section class="cl" id="d-2026-07-22">
     <div class="gutter">
       <div class="clno">2026-07-22</div>
@@ -69,6 +82,7 @@
     <div class="content">
       <h2>리뷰와 멘션, 그리고 코드가 있는 자리의 코멘트</h2>
       <ul class="chg-list">
+        <li><span class="chg-cl">66478</span><span class="chg-title">가이드 투어가 앱을 따라잡음 — diff 안에서 코멘트를 다는 단계와, 리뷰·<code>@멘션</code> 단계가 추가됨 <span class="chg-note">(가상 데포에서 연출한 스크린샷을 담은 두 단계가 새로 붙었고, 랜딩 페이지의 아키텍처 설명도 함께 갱신했다)</span></span></li>
         <li><span class="chg-cl">66477</span><span class="chg-title">diff의 <code>---</code>/<code>+++</code> 머리 두 줄이 다시 헤더로 표시됨 — 0번 줄로 번호가 붙은 빨강·초록 편집 줄처럼 보이던 문제</span></li>
         <li><span class="chg-cl">66476</span><span class="chg-title">휴대폰에서 화면을 당겼을 때 배경이 바깥까지 채워지고, 옆으로 스크롤한 diff의 초록·빨강이 줄 끝까지 이어짐 <span class="chg-note">(페이지 배경을 문서 루트로 옮기고, 통합 diff 행 폭을 창이 아니라 가장 긴 줄에 맞췄다)</span></span></li>
         <li><span class="chg-cl">66472</span><span class="chg-title">체인지리스트 안에서 펼친 diff가 휴대폰 화면 밖으로 파일 목록을 늘리지 않음 <span class="chg-note">(셀은 표의 폭을 따르고 코드는 원래 의도대로 diff 안에서만 스크롤된다; 코멘트 패널은 스크롤해도 제자리에 남는다)</span></span></li>
