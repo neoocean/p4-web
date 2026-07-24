@@ -538,7 +538,11 @@ def raw_content(
         stats = p4_call(p4.run, ["fstat", "-Ol", spec], user, ticket)
         if not stats:
             raise HTTPException(status_code=404, detail="File not found")
-        if int(stats[0].get("fileSize", 0)) > MAX_RAW_BYTES:
+        # The cap guards the inline-preview path: an <img>/preview embedded in
+        # the page would pull the whole file into the browser. An explicit
+        # download streams straight to disk, so its size doesn't matter here —
+        # the response never buffers in server memory either (see below).
+        if not download and int(stats[0].get("fileSize", 0)) > MAX_RAW_BYTES:
             raise HTTPException(status_code=413, detail="File too large")
         # Stream straight from `p4 print` rather than buffering the whole
         # file (up to MAX_RAW_BYTES) in memory — a handful of concurrent
