@@ -33,6 +33,11 @@ OUT = Path(__file__).resolve().parent.parent / "docs" / "assets"
 DAY = 86400
 NOW = 1781524800  # fixed (2026-06-15) so re-runs produce identical images
 
+# Screenshots always show the whole app, whatever a real instance has
+# switched off.
+ALL_FEATURES = {"comments": True, "mentions": True, "reviews": True,
+                "write": True, "favorites": True, "index": True}
+
 USERS = [
     {"user": "alice", "fullName": "Alice Nakamura", "email": "alice@rocket.example",
      "access": NOW - 2 * 3600, "type": "standard"},
@@ -271,7 +276,14 @@ def handle(route, request):
     if path == "/api/info":
         return send({"p4port": "ssl:p4.example.com:1666"})
     if path == "/api/login" or path == "/api/me":
-        return send({"user": "alice", "p4port": "ssl:p4.example.com:1666"})
+        # `features` matters: the SPA gates its chrome on it, so leaving
+        # it out would photograph an app with everything switched off.
+        return send({"user": "alice", "p4port": "ssl:p4.example.com:1666",
+                     "features": ALL_FEATURES})
+    if path == "/api/features":
+        return send({"server": ALL_FEATURES, "user": {},
+                     "effective": ALL_FEATURES, "locked": [],
+                     "depends": {"mentions": "comments"}})
     if path == "/api/users":
         return send({"users": USERS, "groups": GROUPS})
     if path == "/api/jobs":
@@ -403,6 +415,15 @@ with sync_playwright() as p:
     page.hover("#more-menu .dropdown-toggle")
     page.wait_for_timeout(300)
     shot(page, "more")
+
+    # --- settings: the feature switches ---
+    # The More menu above opens on hover and would still be hanging over
+    # this page; move the pointer off it first.
+    page.mouse.move(600, 700)
+    page.wait_for_timeout(300)
+    page.evaluate("location.hash = '#/settings'")
+    page.wait_for_selector(".set-list", timeout=15000)
+    shot(page, "settings")
 
     b.close()
 

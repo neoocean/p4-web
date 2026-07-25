@@ -61,6 +61,21 @@
       <a href="https://github.com/neoocean/p4-web">GitHub</a>.</p>
   </header>
 
+  <section class="cl" id="d-2026-07-25">
+    <div class="gutter">
+      <div class="clno">2026-07-25</div>
+      <div class="clmeta">day 10</div>
+    </div>
+    <div class="content">
+      <h2>Turn features on and off</h2>
+      <ul class="chg-list">
+        <li><span class="chg-cl">66854</span><span class="chg-title">A Settings page behind the gear in the top bar — switch reviews, comments, mentions, write operations, favorites and fast changelist search off for yourself, and set theme, diff layout and markdown view in the same place <span class="chg-note">(the feature switches are stored per account and follow you to any browser; appearance stays per device, because dark on the phone and light on the desktop is reasonable while comments hidden here but not there is only confusing)</span></span></li>
+        <li><span class="chg-cl">66852</span><span class="chg-title">The app hides what is switched off rather than offering buttons that can only fail — menu entries, comment panels and diff comment buttons, review bars, the mention badge, the favorites star and the Edit/Delete links all follow the switches <span class="chg-note">(a link or bookmark into a switched-off feature still opens, and says whether the server or your own settings turned it off; a tab left open from before a change asks you to reload rather than failing silently)</span></span></li>
+        <li><span class="chg-cl">66849</span><span class="chg-title">Whoever runs the server can turn any of the six features off for everyone, from a <code>features.json</code> or <code>P4WEB_FEATURE_*</code> environment variables <span class="chg-note">(a switched-off feature also stops answering on its endpoints, so this is a real boundary rather than a hidden button; nothing is deleted either — reviews and comments written while a feature was on come straight back when it returns. Deployments differ: some want a read-only browser, some already have their reviews elsewhere)</span></span></li>
+      </ul>
+    </div>
+  </section>
+
   <section class="cl" id="d-2026-07-24">
     <div class="gutter">
       <div class="clno">2026-07-24</div>

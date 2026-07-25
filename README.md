@@ -50,6 +50,14 @@ process that shells out to the `p4` command-line client.
   for delete, revert, shelve/unshelve, and submit behind a
   confirmation dialog. Users can only touch their own p4-web pending
   changelists; every write lands in `data/audit.log`.
+- **Reviews & comments** — light review state (open / approved / needs
+  work) on a changelist, inline comment threads on file lines and on
+  changelists (including inside a diff), `@name` mentions with a topbar
+  badge, and starred paths with a dashboard on the depot root.
+- **Feature switches** — reviews, comments, mentions, write operations,
+  favorites and the changelist index can each be turned off: instance-wide
+  by an operator, or per user from the Settings page. See
+  [Feature switches](#feature-switches).
 - **Dark mode** — follows the system by default with a manual
   auto/dark/light toggle.
 - **Login throttling** — per-account and per-IP sliding-window limits
@@ -85,6 +93,41 @@ Then open http://127.0.0.1:8080 and log in with a Perforce account.
 | `P4WEB_P4BIN`  | `p4`                                     | Path to the p4 CLI             |
 | `P4WEB_HOST`   | `127.0.0.1`                              | Bind address (run.sh)          |
 | `P4WEB_PORT`   | `8080`                                   | HTTP port (run.sh)             |
+
+### Feature switches
+
+Every feature is on by default. An operator can turn any of them off for
+the whole instance, and each user can turn them further off for
+themselves under the gear icon → **Settings** (that choice is stored per
+account, so it follows them to any browser).
+
+| Flag        | Covers                                                        |
+| ----------- | ------------------------------------------------------------- |
+| `comments`  | inline comment threads on files, changelists and diffs         |
+| `mentions`  | `@name`, the topbar badge, the Mentions page (needs `comments`)|
+| `reviews`   | review state on a changelist and the Reviews page              |
+| `write`     | checkout/edit/upload/revert/shelve/submit — a read-only instance |
+| `favorites` | starred paths and the depot-root dashboard                     |
+| `index`     | the changelist search index behind fast Changes queries        |
+
+Instance-wide, either as JSON in `$P4WEB_DATA/features.json` (override
+the path with `P4WEB_FEATURES_FILE`):
+
+```json
+{ "reviews": false, "write": false }
+```
+
+or as environment variables, which win over the file:
+
+```sh
+P4WEB_FEATURE_REVIEWS=0 P4WEB_FEATURE_WRITE=0 ./run.sh
+```
+
+The policy is read once at startup, so changing it needs a restart.
+A switched-off feature disappears from the UI *and* its endpoints stop
+answering (404 when the server disabled it, 403 when the user did) —
+but nothing is deleted, so reviews and comments written while it was on
+come back when it is switched on again.
 
 ## Deploying
 

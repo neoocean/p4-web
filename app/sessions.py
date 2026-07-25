@@ -115,6 +115,18 @@ def _conn():
         )"""
     )
     conn.execute("CREATE INDEX IF NOT EXISTS idx_mentions_user ON mentions(user, seen)")
+    # Per-user feature switches (see app/features.py). A missing row
+    # means on, so this table stays empty for everyone who never opens
+    # Settings — and an existing user is unaffected by its arrival.
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS prefs (
+            user TEXT NOT NULL,
+            key TEXT NOT NULL,
+            value INTEGER NOT NULL,
+            updated REAL NOT NULL,
+            PRIMARY KEY (user, key)
+        )"""
+    )
     if created:
         # The DB holds live tickets — owner-only.
         os.chmod(DB_PATH, 0o600)
@@ -214,6 +226,36 @@ def remove_favorite(user, path):
         conn.execute(
             "DELETE FROM favorites WHERE user = ? AND path = ?", (user, path)
         )
+
+
+# ---------- per-user feature switches (shared across devices) ----------
+#
+# Which features a user wants on screen travels with the account, unlike
+# theme or diff layout, which stay in localStorage because "dark on the
+# phone, light on the desktop" is reasonable and "comments hidden here
+# but not there" is just confusing.
+
+
+def prefs(user):
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT key, value FROM prefs WHERE user = ?", (user,)
+        ).fetchall()
+    return {key: bool(value) for key, value in rows}
+
+
+def prefs_set(user, values):
+    """Store a batch of switches. `values` maps flag name -> bool; the
+    caller has already checked the names."""
+    now = time.time()
+    with _conn() as conn:
+        for key, value in values.items():
+            conn.execute(
+                """INSERT INTO prefs (user, key, value, updated) VALUES (?, ?, ?, ?)
+                   ON CONFLICT(user, key) DO UPDATE SET
+                     value = excluded.value, updated = excluded.updated""",
+                (user, key, 1 if value else 0, now),
+            )
 
 
 # ---------- inline comments (threads on file lines / changelists) ----------

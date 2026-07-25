@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
 
-from . import p4, sessions, workspace
+from . import features, p4, sessions, workspace
 from . import index as change_index  # avoid clashing with the def index() route
 
 
@@ -46,6 +46,14 @@ def _raise_fd_limit(target=4096):
 
 
 _raise_fd_limit()
+
+# Say what an operator changed — and only that, so a default instance
+# stays quiet — plus anything unparseable in the config, which is
+# otherwise silently ignored.
+for _note in features.NOTES:
+    print(f"p4-web: feature config: {_note}", flush=True)
+if features.describe():
+    print(f"p4-web: features {features.describe()}", flush=True)
 
 app = FastAPI(title="p4-web")
 
@@ -90,6 +98,37 @@ def require_session(sid):
             sessions.refresh(sid, ttl)
             session = sessions.get(sid) or session
     return session
+
+
+def require_feature(name, session):
+    """Gate a route on a feature flag (see app/features.py).
+
+    Two different noes, deliberately distinguishable by a client:
+    the server policy turned it off, so as far as anyone outside can
+    tell this build hasn't got it (404); or this user switched it off
+    for themselves, which a tab left open from before the change should
+    be able to explain (403).
+
+    This never replaces an authorization check — _require_own_change,
+    the workspace path guard, the command allowlist and the rate limit
+    all still run. A flag is one more gate in front of them.
+    """
+    if not features.SERVER.get(name, True):
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "message": f"The {name} feature is turned off on this server.",
+                "raw": "", "feature": name,
+            },
+        )
+    if not features.effective(sessions.prefs(session["user"])).get(name, True):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "message": f"You have the {name} feature turned off in Settings.",
+                "raw": "", "feature": name,
+            },
+        )
 
 
 # Common p4 error texts -> (HTTP status, message a non-admin can act on).
@@ -264,7 +303,13 @@ def login(body: LoginRequest, request: Request, response: Response):
     ttl = _ticket_ttl(user, ticket)
     sid = sessions.create(user, ticket, owned_ticket=owned, ttl=ttl)
     _set_session_cookie(response, sid, ttl)
-    return {"user": user, "p4port": p4.P4PORT}
+    # Same shape as /api/me: the SPA gates its chrome on this straight
+    # after logging in, without reloading the page.
+    return {
+        "user": user,
+        "p4port": p4.P4PORT,
+        "features": features.effective(sessions.prefs(user)),
+    }
 
 
 def _set_session_cookie(response, sid, ttl):
@@ -298,7 +343,65 @@ def me(response: Response, p4web_session: str | None = Cookie(default=None)):
     _set_session_cookie(
         response, p4web_session, max(session["expires"] - time.time(), 60)
     )
-    return {"user": session["user"], "p4port": p4.P4PORT}
+    # The effective flags ride along so the SPA can gate its chrome on
+    # the first load it already makes, instead of a second round trip.
+    return {
+        "user": session["user"],
+        "p4port": p4.P4PORT,
+        "features": features.effective(sessions.prefs(session["user"])),
+    }
+
+
+# ---------- feature switches ----------
+
+
+class PrefsBody(BaseModel):
+    features: dict[str, bool]
+
+
+def _features_payload(user):
+    prefs = sessions.prefs(user)
+    return {
+        "server": features.server_policy(),
+        "user": prefs,
+        "effective": features.effective(prefs),
+        "locked": features.locked(),
+        "depends": features.DEPENDS,
+    }
+
+
+@app.get("/api/features")
+def get_features(p4web_session: str | None = Cookie(default=None)):
+    """What this instance allows, what this user chose, and the result.
+
+    Behind the session gate: which features an instance runs is part of
+    its configuration, and there's no reason to hand that to someone who
+    hasn't logged in."""
+    session = require_session(p4web_session)
+    return _features_payload(session["user"])
+
+
+@app.put("/api/prefs")
+def set_prefs(body: PrefsBody, p4web_session: str | None = Cookie(default=None)):
+    session = require_session(p4web_session)
+    wanted = {}
+    for key, value in body.features.items():
+        if key not in features.DEFAULTS:
+            raise HTTPException(status_code=400, detail=f"Unknown feature {key!r}")
+        if value and not features.SERVER.get(key, True):
+            # Refuse rather than store-and-ignore: a switch that springs
+            # back on the next load is worse than a clear no.
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": f"The {key} feature is turned off on this server.",
+                    "raw": "", "feature": key,
+                },
+            )
+        wanted[key] = bool(value)
+    if wanted:
+        sessions.prefs_set(session["user"], wanted)
+    return _features_payload(session["user"])
 
 
 # ---------- depot browsing ----------
@@ -884,6 +987,7 @@ def _date_epoch(d, end=False):
 @app.get("/api/index/status")
 def index_status(p4web_session: str | None = Cookie(default=None)):
     session = require_session(p4web_session)
+    require_feature("index", session)
     return change_index.status(session["user"])
 
 
@@ -894,6 +998,7 @@ def index_refresh(
     p4web_session: str | None = Cookie(default=None),
 ):
     session = require_session(p4web_session)
+    require_feature("index", session)
     return p4_call(change_index.refresh, session["user"], session["ticket"], backfill=backfill)
 
 
@@ -908,6 +1013,7 @@ def index_search(
     p4web_session: str | None = Cookie(default=None),
 ):
     session = require_session(p4web_session)
+    require_feature("index", session)
     q = (q or "").strip() or None
     file = (file or "").strip() or None
     user = (user or "").strip() or None
@@ -1151,12 +1257,14 @@ class FavoriteBody(BaseModel):
 @app.get("/api/favorites")
 def list_favorites(p4web_session: str | None = Cookie(default=None)):
     session = require_session(p4web_session)
+    require_feature("favorites", session)
     return {"favorites": sessions.favorites(session["user"])}
 
 
 @app.post("/api/favorites")
 def add_favorite(body: FavoriteBody, p4web_session: str | None = Cookie(default=None)):
     session = require_session(p4web_session)
+    require_feature("favorites", session)
     path = body.path.rstrip("/")
     if not path.startswith("//") or len(path) < 3:
         raise HTTPException(status_code=400, detail="Path must start with //")
@@ -1167,6 +1275,7 @@ def add_favorite(body: FavoriteBody, p4web_session: str | None = Cookie(default=
 @app.delete("/api/favorites")
 def remove_favorite(path: str, p4web_session: str | None = Cookie(default=None)):
     session = require_session(p4web_session)
+    require_feature("favorites", session)
     sessions.remove_favorite(session["user"], path.rstrip("/"))
     return {"ok": True}
 
@@ -1197,7 +1306,8 @@ def list_comments(
     files: bool = False,
     p4web_session: str | None = Cookie(default=None),
 ):
-    require_session(p4web_session)
+    session = require_session(p4web_session)
+    require_feature("comments", session)
     if not path and change is None:
         raise HTTPException(status_code=400, detail="path or change filter required")
     if path and not path.startswith("//"):
@@ -1208,6 +1318,7 @@ def list_comments(
 @app.post("/api/comments")
 def add_comment(body: CommentBody, p4web_session: str | None = Cookie(default=None)):
     session = require_session(p4web_session)
+    require_feature("comments", session)
     text = body.body.strip()
     if not text:
         raise HTTPException(status_code=400, detail="Empty comment")
@@ -1251,6 +1362,7 @@ def edit_comment(
     p4web_session: str | None = Cookie(default=None),
 ):
     session = require_session(p4web_session)
+    require_feature("comments", session)
     comment = sessions.comment_get(cid)
     if not comment or comment["deleted"]:
         raise HTTPException(status_code=404, detail="Comment not found")
@@ -1280,6 +1392,7 @@ def edit_comment(
 @app.delete("/api/comments/{cid}")
 def delete_comment(cid: int, p4web_session: str | None = Cookie(default=None)):
     session = require_session(p4web_session)
+    require_feature("comments", session)
     comment = sessions.comment_get(cid)
     if not comment or comment["deleted"]:
         raise HTTPException(status_code=404, detail="Comment not found")
@@ -1302,7 +1415,8 @@ def comment_counts(
     directory whose immediate files are counted. Both read only the
     app's own comment store — a comment is visible to anyone who can
     reach the app, exactly as the panels already are."""
-    require_session(p4web_session)
+    session = require_session(p4web_session)
+    require_feature("comments", session)
     if changes:
         try:
             nums = [int(c) for c in changes.split(",") if c.strip()][:500]
@@ -1340,6 +1454,8 @@ def _known_users(user, ticket):
 def _resolve_mentions(body, author, user, ticket):
     """Real users named in `body`, minus the author (nobody needs a badge
     for their own comment)."""
+    if not features.SERVER.get("mentions", True):
+        return []  # no inbox to land in on this instance — don't record rows
     names = sessions.mention_names(body)
     if not names:
         return []
@@ -1361,6 +1477,7 @@ def list_mentions(
     p4web_session: str | None = Cookie(default=None),
 ):
     session = require_session(p4web_session)
+    require_feature("mentions", session)
     return {
         "mentions": sessions.mentions_for(
             session["user"], unseen_only=unseen, limit=min(max, 500)
@@ -1374,6 +1491,7 @@ def mark_mentions_seen(
     body: MentionsSeen, p4web_session: str | None = Cookie(default=None),
 ):
     session = require_session(p4web_session)
+    require_feature("mentions", session)
     sessions.mentions_mark_seen(session["user"], body.ids)
     return {"unseen": sessions.mentions_unseen_count(session["user"])}
 
@@ -1425,6 +1543,7 @@ def list_reviews(
     the list costs a single p4 call — and changes the user cannot see
     drop out of it, since describe simply returns nothing for them."""
     session = require_session(p4web_session)
+    require_feature("reviews", session)
     if state is not None and state not in sessions.REVIEW_STATES:
         raise HTTPException(status_code=400, detail="Unknown review state")
     max = min(max, 500)
@@ -1449,6 +1568,7 @@ def list_reviews(
 @app.get("/api/review/{change}")
 def get_review(change: int, p4web_session: str | None = Cookie(default=None)):
     session = require_session(p4web_session)
+    require_feature("reviews", session)
     _change_summary(change, session["user"], session["ticket"])
     return {
         "review": sessions.review_get(change),
@@ -1462,6 +1582,7 @@ def set_review(
     p4web_session: str | None = Cookie(default=None),
 ):
     session = require_session(p4web_session)
+    require_feature("reviews", session)
     if body.state not in sessions.REVIEW_STATES:
         raise HTTPException(status_code=400, detail="Unknown review state")
     note = (body.note or "").strip() or None
@@ -1478,6 +1599,7 @@ def drop_review(change: int, p4web_session: str | None = Cookie(default=None)):
     """Withdraw a review entirely (the flag and its history). Available
     to whoever opened it."""
     session = require_session(p4web_session)
+    require_feature("reviews", session)
     review = sessions.review_get(change)
     if not review:
         raise HTTPException(status_code=404, detail="No review on this change")
@@ -1506,6 +1628,10 @@ def _client_ip(request):
 
 def _write_ctx(p4web_session, request):
     session = require_session(p4web_session)
+    # Every write route comes through here, so this is the one place the
+    # "write" flag has to be checked — and it sits before ensure_client,
+    # so a read-only instance never even provisions a workspace.
+    require_feature("write", session)
     user, ticket = session["user"], session["ticket"]
     client = p4_call(workspace.ensure_client, user, ticket)
     return user, ticket, client, _client_ip(request)

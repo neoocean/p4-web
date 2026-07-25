@@ -245,6 +245,7 @@ body {
   font-size: 16px;
   padding: 0 2px;
   line-height: 1;
+  text-decoration: none;  /* the settings gear is a link, not a button */
 }
 
 .theme-btn:hover { color: var(--accent); }
@@ -1655,3 +1656,41 @@ dialog textarea { font-family: var(--mono); }
 .file-links a { color: var(--accent); text-decoration: none; margin-right: 10px; font-size: 12px; }
 
 .route-container { flex: 1; min-width: 0; display: flex; }
+
+/* ---------- settings ---------- */
+
+.set-pane { max-width: 760px; }
+.set-head { margin: 22px 0 4px; font-size: 14px; }
+.set-sub { margin: 0 0 10px; font-size: 12px; max-width: 64ch; }
+
+.set-list {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.set-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.set-list > .set-row:first-child { border-top: none; }
+.set-row input[type="checkbox"] { margin-top: 2px; flex: none; }
+.set-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.set-name { font-size: 13px; font-weight: 600; }
+.set-note { font-size: 12px; color: var(--muted); }
+.set-off .set-name, .set-off .set-note { opacity: 0.55; }
+.set-pick { align-items: center; justify-content: space-between; gap: 16px; }
+.set-pick select { flex: none; }
+
+.badge-muted {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--muted);
+  font-weight: 500;
+  margin-left: 6px;
+}

@@ -61,6 +61,21 @@
       <a href="https://github.com/neoocean/p4-web">GitHub</a>에 미러링됩니다.</p>
   </header>
 
+  <section class="cl" id="d-2026-07-25">
+    <div class="gutter">
+      <div class="clno">2026-07-25</div>
+      <div class="clmeta">10일차</div>
+    </div>
+    <div class="content">
+      <h2>기능을 켜고 끄기</h2>
+      <ul class="chg-list">
+        <li><span class="chg-cl">66854</span><span class="chg-title">상단바 톱니 아이콘에 설정 페이지 — 리뷰·코멘트·멘션·쓰기 작업·즐겨찾기·빠른 체인지 검색을 내 계정 기준으로 끌 수 있고, 테마·diff 레이아웃·마크다운 보기도 같은 자리에서 고른다 <span class="chg-note">(기능 스위치는 계정에 저장되어 어느 브라우저에서든 따라온다. 표시 취향은 기기별로 남는데, 휴대폰은 다크·데스크톱은 라이트가 자연스러운 반면 "여기선 코멘트가 보이고 저기선 안 보인다"는 혼란스럽기 때문이다)</span></span></li>
+        <li><span class="chg-cl">66852</span><span class="chg-title">꺼진 기능은 눌러도 실패할 버튼을 남기는 대신 화면에서 사라진다 — 메뉴 항목, 코멘트 패널과 diff 안 코멘트 버튼, 리뷰 바, 멘션 배지, 즐겨찾기 별, 파일 페이지의 Edit/Delete가 모두 스위치를 따른다 <span class="chg-note">(꺼진 기능으로 향하는 링크·북마크도 그대로 열리며, 서버가 껐는지 내 설정이 껐는지 알려준다. 변경 전부터 열려 있던 탭은 조용히 실패하는 대신 새로고침을 안내한다)</span></span></li>
+        <li><span class="chg-cl">66849</span><span class="chg-title">서버를 운영하는 쪽은 여섯 기능 중 무엇이든 전체에 대해 끌 수 있다 — <code>features.json</code> 또는 <code>P4WEB_FEATURE_*</code> 환경변수 <span class="chg-note">(꺼진 기능은 엔드포인트도 응답하지 않으므로 숨긴 버튼이 아니라 실제 경계다. 데이터는 지우지 않는다 — 켜져 있는 동안 쓰인 리뷰·코멘트는 다시 켜면 그대로 돌아온다. 배포처마다 사정이 다르다: 순수 열람용으로 띄우고 싶은 곳도, 리뷰는 이미 다른 도구가 맡은 팀도 있다)</span></span></li>
+      </ul>
+    </div>
+  </section>
+
   <section class="cl" id="d-2026-07-24">
     <div class="gutter">
       <div class="clno">2026-07-24</div>

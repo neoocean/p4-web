@@ -49,15 +49,27 @@ async function api(path, options) {
   if (!res.ok) {
     let message = res.statusText;
     let raw = null;
+    let feature = null;
     try {
       const detail = (await res.json()).detail;
       if (detail && typeof detail === "object") {
         message = detail.message || message;
         raw = detail.raw || null;
+        feature = detail.feature || null;
       } else if (detail) {
         message = detail;
       }
     } catch (e) { /* keep statusText */ }
+    // A feature switched off since this tab loaded: the chrome for it is
+    // still on screen and would otherwise just fail silently.
+    if (feature && (res.status === 403 || res.status === 404)) {
+      FEATURES[feature] = false;
+      applyFeatureNav();
+      if (!api._featureNotice) {
+        api._featureNotice = true;
+        toast(`${message} Reload the page.`);
+      }
+    }
     throw new ApiError(message, res.status, raw);
   }
   return res.json();
@@ -69,6 +81,82 @@ class ApiError extends Error {
     this.status = status;
     this.raw = raw;
   }
+}
+
+/* ---------- feature flags ---------- */
+
+/* Which features this instance and this user run — the effective answer
+   already ANDed server-side (see app/features.py), delivered on /api/me.
+   Everything on until told otherwise, so a hiccup fetching them shows
+   the full app rather than a mysteriously empty one. The server gates
+   the same flags itself; this only keeps dead chrome off the screen. */
+const FEATURE_DEFAULTS = {
+  comments: true, mentions: true, reviews: true,
+  write: true, favorites: true, index: true,
+};
+let FEATURES = { ...FEATURE_DEFAULTS };
+
+function feat(name) {
+  return FEATURES[name] !== false;
+}
+
+const FEATURE_LABELS = {
+  comments: "Comments",
+  mentions: "Mentions",
+  reviews: "Reviews",
+  write: "Write operations",
+  favorites: "Favorites",
+  index: "Fast changelist search",
+};
+
+let featuresPromise = null;
+
+function loadFeatures(force) {
+  if (force || !featuresPromise) {
+    featuresPromise = api("/api/features");
+    featuresPromise.catch(() => { featuresPromise = null; });
+  }
+  return featuresPromise;
+}
+
+async function guardFeature(view, name) {
+  /* A bookmark or an old permalink into a feature that's now off lands
+     here. Say which switch did it — the server's or your own — rather
+     than dropping a dead page. */
+  if (feat(name)) return true;
+  const label = FEATURE_LABELS[name] || name;
+  view.innerHTML = `
+    <div class="pane">
+      <h2 class="search-title">${esc(label)}</h2>
+      <p class="notice">${esc(label)} is turned off.</p>
+    </div>`;
+  let data;
+  try { data = await loadFeatures(); }
+  catch (e) { return false; }
+  if (!view.isConnected) return false;
+  const note = $(".notice", view);
+  if (data.locked.includes(name)) {
+    note.textContent = `${label} is turned off on this server.`;
+  } else if (data.depends[name] && !data.effective[data.depends[name]]) {
+    const parent = FEATURE_LABELS[data.depends[name]] || data.depends[name];
+    note.innerHTML = `${esc(label)} live inside ${esc(parent.toLowerCase())}, which are turned off — `
+      + `<a href="#/settings">Settings</a>.`;
+  } else {
+    note.innerHTML = `You have ${esc(label.toLowerCase())} turned off — <a href="#/settings">Settings</a>.`;
+  }
+  return false;
+}
+
+function applyFeatureNav() {
+  /* Chrome that would lead somewhere switched off. */
+  const hide = (sel, on) => {
+    const el = $(sel);
+    if (el) el.classList.toggle("hidden", !on);
+  };
+  hide('[data-nav="my"]', feat("write"));
+  hide('#more-menu a[href="#/reviews"]', feat("reviews"));
+  hide('#more-menu a[href="#/mentions"]', feat("mentions"));
+  if (!feat("mentions")) hide("#mentions-btn", false);
 }
 
 /* ---------- auth ---------- */
@@ -98,9 +186,13 @@ function showApp() {
   $("#login-notice").classList.add("hidden");
   $("#app").classList.remove("hidden");
   $("#whoami").textContent = currentUser ? `${currentUser.user} @ ${currentUser.p4port}` : "";
-  refreshMentionBadge();
-  // Warm the user list so mention chips and autocomplete are ready.
-  knownUsers();
+  FEATURES = { ...FEATURE_DEFAULTS, ...(currentUser && currentUser.features) };
+  applyFeatureNav();
+  if (feat("mentions")) {
+    refreshMentionBadge();
+    // Warm the user list so mention chips and autocomplete are ready.
+    knownUsers();
+  }
   route();
 }
 
@@ -494,11 +586,11 @@ registerRoute(/^#\/browse(\/\/[^?]*)?(\?.*)?$/, async (view, m) => {
       <div class="pane-toolbar">
         ${breadcrumbs(path, null)}
         <span class="toolbar-btns">
-          ${path ? `<button class="toolbtn" id="fav-btn" title="Favorite this path">☆</button>
-          <a class="toolbtn" href="#/folderdiff?left=${encodeURIComponent(path)}">Folder diff…</a>` : ""}
+          ${path && feat("favorites") ? `<button class="toolbtn" id="fav-btn" title="Favorite this path">☆</button>` : ""}
+          ${path ? `<a class="toolbtn" href="#/folderdiff?left=${encodeURIComponent(path)}">Folder diff…</a>` : ""}
         </span>
       </div>
-      ${path ? "" : '<div id="fav-dash"></div>'}
+      ${path || !feat("favorites") ? "" : '<div id="fav-dash"></div>'}
       <table class="listing">
         <thead><tr><th></th>
           ${sortHeader("name", "Name", sortKey, sortDir)}
@@ -718,7 +810,7 @@ function bindLinePermalinks(view, path) {
     menu.id = "line-menu";
     menu.innerHTML = `
       <button data-act="copy">Copy link to line ${n}</button>
-      <button data-act="comment">Comment on line ${n}</button>`;
+      ${feat("comments") ? `<button data-act="comment">Comment on line ${n}</button>` : ""}`;
     const r = ln.getBoundingClientRect();
     menu.style.left = `${r.right + 6}px`;
     menu.style.top = `${r.top - 4}px`;
@@ -912,7 +1004,7 @@ async function renderFileContent(view, path, params) {
         <span>${fmtTime(f.time)}</span>
         <a href="${esc(rawUrl)}" target="_blank" rel="noopener">Raw</a>
         <a href="${esc(rawUrl)}&download=1">Download</a>
-        ${f.deleted ? "" : `<a href="#" id="file-edit">Edit</a>
+        ${f.deleted || !feat("write") ? "" : `<a href="#" id="file-edit">Edit</a>
         <a href="#" id="file-delete" class="danger-link">Delete</a>`}`)}
       ${fileTabBar(path, "content", f.rev !== f.headRev ? f.rev : null)}
       ${mdToggle}
@@ -1199,7 +1291,7 @@ function diffGutterHtml(row, commentable) {
   const sign = row.kind === "add" ? "+" : row.kind === "del" ? "-" : " ";
   // Only new-side lines can hold a thread: a comment is anchored to
   // path#rev:line, and a deleted line has no line in that revision.
-  const btn = commentable && row.newNo != null
+  const btn = commentable && feat("comments") && row.newNo != null
     ? `<button class="dl-cmt" data-line="${row.newNo}" title="Comment on line ${row.newNo}" aria-label="Comment on line ${row.newNo}">&#128172;</button>`
     : "";
   return `<span class="dl-gutter"><span class="dl-num">${row.oldNo ?? ""}</span><span class="dl-num">${row.newNo ?? ""}</span>${btn}</span><span class="dl-sign">${sign}</span>`;
@@ -1495,6 +1587,7 @@ function threadBadgeHtml(count) {
 async function fillThreadBadges(root, query) {
   /* Listings paint first and ask about comments afterwards: the count is
      a nicety and must never hold up (or break) the rows themselves. */
+  if (!feat("comments")) return;
   let counts;
   try { counts = (await api(`/api/comments/counts?${query}`)).counts; }
   catch (e) { return; }
@@ -1652,7 +1745,7 @@ let _idxWarmAt = 0;
 let _idxWarming = false;
 
 function warmIndex(idxStatus) {
-  if (_idxWarming) return;
+  if (_idxWarming || !feat("index")) return;
   const now = Date.now() / 1000;
   const empty = !idxStatus || !idxStatus.changes;
   const stale = !idxStatus || !idxStatus.updated || now - idxStatus.updated > 60;
@@ -1682,8 +1775,10 @@ registerRoute(/^#\/changes/, async (view, m) => {
   const dateTo = params.get("to") || "";
 
   // Pending status and path-prefix filters can only be answered live —
-  // see the engine notes on the listing load below.
-  const forceLive = status === "pending" || (Boolean(path) && !file);
+  // see the engine notes on the listing load below. With the index
+  // feature off, everything is: the page keeps working, just without the
+  // fast path and its status bar.
+  const forceLive = !feat("index") || status === "pending" || (Boolean(path) && !file);
 
   // The page paints before anything is fetched: filters and the index
   // bar are pure markup, and the listing fills in underneath. Waiting on
@@ -2167,6 +2262,7 @@ function decorateMentions(el) {
   /* Runs on the sanitized markdown output, and builds the chip with DOM
      calls rather than HTML, so a body can never smuggle markup in
      through a name. Code and links are left alone. */
+  if (!feat("mentions")) return;
   const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
   const targets = [];
   while (walker.nextNode()) {
@@ -2197,7 +2293,7 @@ function decorateMentions(el) {
 
 async function refreshMentionBadge() {
   const btn = $("#mentions-btn");
-  if (!btn || !currentUser) return;
+  if (!btn || !currentUser || !feat("mentions")) return;
   let n = 0;
   try { n = (await api("/api/mentions?unseen=1&max=1")).unseen; }
   catch (e) { return; }
@@ -2208,7 +2304,7 @@ async function refreshMentionBadge() {
 function bindMentionAutocomplete(ta) {
   /* Typing "@ali" over a textarea offers matching user names; Tab or
      Enter takes the highlighted one. */
-  if (!ta || ta.dataset.mentionBound) return;
+  if (!ta || ta.dataset.mentionBound || !feat("mentions")) return;
   ta.dataset.mentionBound = "1";
   let box = null, matches = [], active = 0, from = 0;
 
@@ -2280,6 +2376,7 @@ function mentionAnchorHash(c) {
 }
 
 registerRoute(/^#\/mentions/, async (view) => {
+  if (!await guardFeature(view, "mentions")) return;
   spinner(view);
   let data;
   try { data = await api("/api/mentions"); }
@@ -2337,6 +2434,7 @@ async function bindDiffComments(holder, anchor) {
   /* Threads live on the file (path#rev:line), so the same conversation
      shows up in the file viewer and in every changelist whose diff
      touches that line. Fetched once per diff block. */
+  if (!feat("comments")) return;
   let comments = [];
   try {
     comments = (await api(`/api/comments?path=${encodeURIComponent(anchor.path)}`)).comments;
@@ -2459,6 +2557,7 @@ function reviewBadgeHtml(state) {
 async function renderReviewBar(slot, change) {
   /* State flag + history for one changelist. Anyone who can see the
      change can move it to any state; the log says who did. */
+  if (!slot || !feat("reviews")) return;
   let data;
   try { data = await api(`/api/review/${change}`); }
   catch (e) { slot.innerHTML = ""; return; }
@@ -2516,6 +2615,7 @@ async function renderReviewBar(slot, change) {
 }
 
 registerRoute(/^#\/reviews/, async (view) => {
+  if (!await guardFeature(view, "reviews")) return;
   const [, params] = parseHashQuery(location.hash);
   const state = params.get("state") || "";
   spinner(view);
@@ -2590,6 +2690,7 @@ function commentHtml(c, ctx) {
 
 async function renderCommentsPanel(slot, anchor, opts = {}) {
   /* anchor: {path, rev} or {change}. opts.onLineClick(line). */
+  if (!slot || !feat("comments")) return;
   const me = currentUser ? currentUser.user : "";
   // On a changelist page, `files=1` also pulls in the threads anchored to
   // lines of its files — the ones opened from inside an expanded diff.
@@ -2806,6 +2907,7 @@ async function openInChangelist(path, action) {
 }
 
 registerRoute(/^#\/my$/, async (view) => {
+  if (!await guardFeature(view, "write")) return;
   spinner(view);
   let data;
   try { data = await api("/api/my/pending"); }
@@ -2838,6 +2940,7 @@ registerRoute(/^#\/my$/, async (view) => {
 });
 
 registerRoute(/^#\/my\/(\d+)$/, async (view, m) => {
+  if (!await guardFeature(view, "write")) return;
   const change = Number(m[1]);
   spinner(view);
   let data;
@@ -3038,6 +3141,7 @@ registerRoute(/^#\/my\/(\d+)$/, async (view, m) => {
 });
 
 registerRoute(/^#\/my\/(\d+)\/edit/, async (view, m) => {
+  if (!await guardFeature(view, "write")) return;
   const change = Number(m[1]);
   const [, params] = parseHashQuery(location.hash);
   const path = params.get("path") || "";
@@ -3085,6 +3189,142 @@ registerRoute(/^#\/my\/(\d+)\/edit/, async (view, m) => {
       const s = ta.selectionStart;
       ta.setRangeText("    ", s, ta.selectionEnd, "end");
       dirty.textContent = "· unsaved";
+    }
+  });
+});
+
+/* ---------- settings ---------- */
+
+const FEATURE_NOTES = {
+  comments: "Threads on file lines and changelists, including inside a diff.",
+  mentions: "@name in a comment, the topbar badge and the Mentions page.",
+  reviews: "Review state — open, approved, needs work — on a changelist.",
+  write: "Checkout, edit, upload, revert, shelve and submit: My Changes.",
+  favorites: "Starred paths, and the dashboard on the depot root.",
+  index: "The changelist index behind fast Changes queries and filters.",
+};
+
+const APPEARANCE = [
+  {
+    key: "theme", label: "Theme", store: "theme", fallback: "auto",
+    options: [["auto", "Match the system"], ["dark", "Dark"], ["light", "Light"]],
+    note: "",
+  },
+  {
+    key: "diffView", label: "Diff layout", store: "diffView", fallback: "unified",
+    options: [["unified", "Unified"], ["split", "Side by side"]],
+    note: "Narrow screens always render unified — there isn't room for two columns.",
+  },
+  {
+    key: "mdView", label: "Markdown files", store: "mdView", fallback: "rendered",
+    options: [["rendered", "Rendered"], ["source", "Source"]],
+    note: "",
+  },
+];
+
+function settingsRowHtml(name, data) {
+  const on = data.effective[name];
+  const lockedHere = data.locked.includes(name);
+  const parent = data.depends[name];
+  const parentOff = parent && !data.effective[parent];
+  const why = lockedHere
+    ? '<span class="badge badge-muted">off on this server</span>'
+    : parentOff
+      ? `<span class="badge badge-muted">needs ${esc(FEATURE_LABELS[parent])}</span>`
+      : "";
+  return `
+    <label class="set-row${lockedHere || parentOff ? " set-off" : ""}">
+      <input type="checkbox" data-feature="${name}" ${on ? "checked" : ""}
+             ${lockedHere || parentOff ? "disabled" : ""}>
+      <span class="set-text">
+        <span class="set-name">${esc(FEATURE_LABELS[name])} ${why}</span>
+        <span class="set-note">${esc(FEATURE_NOTES[name])}</span>
+      </span>
+    </label>`;
+}
+
+registerRoute(/^#\/settings/, async (view) => {
+  spinner(view);
+  let data;
+  try { data = await loadFeatures(true); }
+  catch (err) { if (err.status !== 401) renderError(view, err); return; }
+
+  const appearance = APPEARANCE.map((a) => {
+    const value = localStorage.getItem(a.store) || a.fallback;
+    return `
+      <label class="set-row set-pick">
+        <span class="set-text">
+          <span class="set-name">${a.label}</span>
+          ${a.note ? `<span class="set-note">${esc(a.note)}</span>` : ""}
+        </span>
+        <select data-appearance="${a.store}">
+          ${a.options.map(([v, t]) =>
+            `<option value="${v}" ${v === value ? "selected" : ""}>${esc(t)}</option>`).join("")}
+        </select>
+      </label>`;
+  }).join("");
+
+  const serverOff = data.locked.length
+    ? data.locked.map((k) => FEATURE_LABELS[k]).join(", ")
+    : "nothing — every feature is available here";
+
+  view.innerHTML = `
+    <div class="pane set-pane">
+      <h2 class="search-title">Settings</h2>
+
+      <h3 class="set-head">Features</h3>
+      <p class="set-sub muted">Yours alone, and they follow your account to any
+        browser. Switching one off hides it and closes its endpoints; nothing
+        is deleted, so anything written while it was on comes back with it.</p>
+      <div class="set-list">
+        ${Object.keys(FEATURE_LABELS).map((k) => settingsRowHtml(k, data)).join("")}
+      </div>
+
+      <h3 class="set-head">Appearance</h3>
+      <p class="set-sub muted">Stored in this browser, so each device can differ.</p>
+      <div class="set-list">${appearance}</div>
+
+      <h3 class="set-head">About</h3>
+      <div class="set-list">
+        <div class="set-row"><span class="set-text">
+          <span class="set-name">Signed in</span>
+          <span class="set-note">${esc(currentUser ? currentUser.user : "")} @ ${esc(currentUser ? currentUser.p4port : "")}</span>
+        </span></div>
+        <div class="set-row"><span class="set-text">
+          <span class="set-name">Turned off by this server</span>
+          <span class="set-note">${esc(serverOff)}</span>
+        </span></div>
+      </div>
+    </div>`;
+
+  view.addEventListener("change", async (e) => {
+    const box = e.target.closest("input[data-feature]");
+    if (box) {
+      box.disabled = true;
+      try {
+        const next = await apiJson("/api/prefs", "PUT", {
+          features: { [box.dataset.feature]: box.checked },
+        });
+        featuresPromise = Promise.resolve(next);
+        FEATURES = { ...FEATURE_DEFAULTS, ...next.effective };
+        applyFeatureNav();
+        // A dependency may have moved with it (mentions follow comments),
+        // so redraw the list rather than just this row.
+        $(".set-list", view).innerHTML =
+          Object.keys(FEATURE_LABELS).map((k) => settingsRowHtml(k, next)).join("");
+        toast("Saved");
+      } catch (err) {
+        box.checked = !box.checked;
+        box.disabled = false;
+        alert(err.message);
+      }
+      return;
+    }
+    const sel = e.target.closest("select[data-appearance]");
+    if (sel) {
+      localStorage.setItem(sel.dataset.appearance, sel.value);
+      if (sel.dataset.appearance === "theme") applyTheme();
+      toast("Saved");
     }
   });
 });
