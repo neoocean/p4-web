@@ -2039,12 +2039,14 @@ function setupChangesPaging(view, first, fetchOlder) {
 const DIFFABLE = new Set(["edit", "integrate", "move/add"]);
 
 // Clicking a file path opens a readable (text/markdown) file in the
-// inline viewer, or downloads a binary one directly. Mirrors the
+// inline viewer, or downloads a binary one directly. Images are binary
+// but the viewer previews them inline, so they open there too rather
+// than firing a download the reader has to dismiss. Mirrors the
 // backend's binary-type markers (see BINARY_TYPE_MARKERS in p4.py).
 function fileOpenCell(f) {
   const revSuffix = f.rev ? `<span class="muted">#${f.rev}</span>` : "";
   let href;
-  if (/binary|apple|resource/i.test(f.type || "")) {
+  if (/binary|apple|resource/i.test(f.type || "") && !isImageFile(f.path)) {
     const revQ = f.rev ? `&rev=${f.rev}` : "";
     href = esc(`/api/raw?path=${encodeURIComponent(f.path)}${revQ}&download=1`);
   } else {
