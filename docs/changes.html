@@ -61,6 +61,20 @@
       <a href="https://github.com/neoocean/p4-web">GitHub</a>.</p>
   </header>
 
+  <section class="cl" id="d-2026-07-26">
+    <div class="gutter">
+      <div class="clno">2026-07-26</div>
+      <div class="clmeta">day 11</div>
+    </div>
+    <div class="content">
+      <h2>The list keeps going, and pictures open as pictures</h2>
+      <ul class="chg-list">
+        <li><span class="chg-cl">67389</span><span class="chg-title">Clicking an image in a changelist opens it in the file viewer instead of starting a download <span class="chg-note">(a <code>.jpg</code> is <code>binary+F</code> to Perforce, so it went to the download endpoint along with everything else binary — on a phone that meant dismissing a save-or-open sheet before you could see the picture. The viewer already previewed images inline; its Raw and Download links are still there when you want the original, and other binaries download as before)</span></span></li>
+        <li><span class="chg-cl">67388</span><span class="chg-title">The Changes list keeps loading as you scroll instead of stopping at a <em>Load more</em> button <span class="chg-note">(the next page starts arriving about a screen before you reach the bottom, and the fast index can page now too, so a filtered search continues past its first 200 rows as well. A button still appears for the two cases that shouldn’t drive themselves: a page that failed, and a filter so sparse that whole pages come back empty)</span></span></li>
+      </ul>
+    </div>
+  </section>
+
   <section class="cl" id="d-2026-07-25">
     <div class="gutter">
       <div class="clno">2026-07-25</div>
