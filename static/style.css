@@ -1627,6 +1627,22 @@ dialog textarea { font-family: var(--mono); }
 
 .load-more:hover { background: var(--accent-soft); }
 
+/* Footer under an infinite-scrolling listing: holds "Loading more…",
+   "End of list", or the manual/retry button. It keeps its height so the
+   page doesn't jump as those swap in and out. */
+.page-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 0;
+  font-size: 13px;
+}
+
+.page-status .load-more { margin-top: 0; }
+.page-err { color: var(--danger); }
+
 .chg-head h2 { margin: 0 0 6px; font-size: 18px; }
 .chg-head .badge { margin-left: 8px; vertical-align: middle; }
 .badge-pending { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn-text); }

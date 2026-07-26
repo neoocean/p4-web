@@ -1010,13 +1010,22 @@ def index_search(
     date_from: str | None = None,
     date_to: str | None = None,
     max: int = 200,
+    before: int | None = None,
     p4web_session: str | None = Cookie(default=None),
 ):
+    """Search the per-user change index, newest first.
+
+    `before` pages older results by limiting to changes numbered below
+    it; `oldest`/`pageSize` in the response are the cursor and the page
+    size the client needs to ask for the next page (same contract as
+    `/api/changes`).
+    """
     session = require_session(p4web_session)
     require_feature("index", session)
     q = (q or "").strip() or None
     file = (file or "").strip() or None
     user = (user or "").strip() or None
+    page_size = min(max, 500)
     # No filters is valid: it's the default Changes browse, served from
     # the index as the newest N submitted changes.
     results = change_index.search(
@@ -1026,9 +1035,15 @@ def index_search(
         cl_user=user,
         date_from=_date_epoch(date_from) if date_from else None,
         date_to=_date_epoch(date_to, end=True) if date_to else None,
-        max_results=min(max, 500),
+        before=before,
+        max_results=page_size,
     )
-    return {"changes": results, "count": len(results)}
+    return {
+        "changes": results,
+        "count": len(results),
+        "oldest": min((c["change"] for c in results), default=None),
+        "pageSize": page_size,
+    }
 
 
 # ---------- metadata browsers: labels / jobs / branches / streams / users ----------

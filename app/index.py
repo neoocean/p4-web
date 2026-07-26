@@ -271,11 +271,15 @@ def status(user):
 # ---------- query ----------
 
 
-def search(user, *, q=None, file=None, cl_user=None, date_from=None, date_to=None, max_results=200):
+def search(user, *, q=None, file=None, cl_user=None, date_from=None, date_to=None,
+           before=None, max_results=200):
     """Fast changelist search over the index. Any combination of a
     description substring (`q`), a touched-filename substring (`file`),
     an author substring (`cl_user`), and an epoch date range. Newest
-    first."""
+    first.
+
+    `before` pages older results by limiting to changes numbered below
+    it; unlike the live engine it composes with every other filter."""
     conn = _conn(user)
     try:
         where = []
@@ -297,6 +301,9 @@ def search(user, *, q=None, file=None, cl_user=None, date_from=None, date_to=Non
         if date_to is not None:
             where.append("c.time <= ?")
             args.append(int(date_to))
+        if before:
+            where.append("c.change < ?")
+            args.append(int(before))
         clause = (" WHERE " + " AND ".join(where)) if where else ""
         sql = (
             "SELECT DISTINCT c.change, c.user, c.client, c.time, c.desc "

@@ -1907,33 +1907,132 @@ registerRoute(/^#\/changes/, async (view, m) => {
     }).catch(() => {});
   }
 
-  if (liveQ && data.rawCount >= data.pageSize && status === "submitted" && !hasDates) {
-    $("#chg-more-slot", view).innerHTML =
-      '<button id="chg-more" class="load-more">Load more</button>';
-    const more = $("#chg-more", view);
-    let oldest = data.oldest || 0;
-    more.addEventListener("click", async () => {
-      more.disabled = true;
-      try {
+  // ---- paging ----
+  //
+  // Both engines page the same way — ask for the changes numbered below
+  // the oldest row on screen — but only the index can always do it: p4
+  // reads `@<CL` and `@from,@to` as competing revision specs, and
+  // pending changes are a set rather than a window, so the live engine
+  // pages submitted-without-dates only.
+  const fetchOlder = liveQ
+    ? (status === "submitted" && !hasDates
+      ? (before) => {
         const mq = new URLSearchParams(liveQ);
-        mq.set("before", oldest);
-        const page = await api(`/api/changes?${mq}`);
+        mq.set("before", before);
+        return api(`/api/changes?${mq}`);
+      }
+      : null)
+    : (before) => {
+      const pq = new URLSearchParams(iq);
+      pq.set("before", before);
+      return api(`/api/index/search?${pq}`);
+    };
+  if (fetchOlder) setupChangesPaging(view, data, fetchOlder);
+});
+
+/* Infinite scroll for the changes listing: a sentinel under the table
+   pulls the next page in as it nears the viewport, so reaching the
+   bottom and pushing further just continues the list. A button remains
+   for the cases auto-loading shouldn't drive itself — a failed page, or
+   a filter so sparse that whole pages come back empty (the live engine
+   filters descriptions after the fetch, so paging through a rare word
+   can burn many p4 calls for no rows). */
+function setupChangesPaging(view, first, fetchOlder) {
+  const slot = $("#chg-more-slot", view);
+  if (!slot) return;
+  // rawCount is the pre-filter row count; the index filters in SQL, so
+  // there the rows themselves are the count. Either way a short page
+  // means the source ran dry.
+  const full = (p) => (p.rawCount ?? p.changes.length) >= p.pageSize;
+  if (!full(first) || !first.oldest) return;
+
+  let oldest = first.oldest;
+  let loading = false;
+  let emptyStreak = 0;  // consecutive pages that added no visible rows
+  let stopped = false;
+
+  slot.innerHTML = `
+    <div id="chg-page-status" class="page-status" aria-live="polite"></div>
+    <div id="chg-sentinel"></div>`;
+  const statusEl = $("#chg-page-status", view);
+  const sentinel = $("#chg-sentinel", view);
+  // The listing scrolls inside .pane, not the window, so that is the
+  // observer's root; the margin starts the fetch before the floor is
+  // reached, keeping the list continuous instead of stalling.
+  const TRIGGER_PX = 500;
+  const scroller = $(".pane", view);
+  const observer = new IntersectionObserver(
+    (entries) => { if (entries.some((e) => e.isIntersecting)) loadMore(); },
+    { root: scroller || null, rootMargin: `${TRIGGER_PX}px 0px` }
+  );
+  observer.observe(sentinel);
+
+  // An observer only reports *changes* in visibility. If appended rows
+  // leave the sentinel inside the trigger zone — a short page, or a
+  // window taller than the page is long — nothing fires again and
+  // paging dies at the bottom, so each load re-checks by hand.
+  const inTriggerZone = () => {
+    if (stopped || !sentinel.isConnected) return false;
+    const bottom = scroller
+      ? scroller.getBoundingClientRect().bottom
+      : window.innerHeight;
+    return sentinel.getBoundingClientRect().top < bottom + TRIGGER_PX;
+  };
+
+  function stop(html) {
+    stopped = true;
+    observer.disconnect();
+    statusEl.innerHTML = html;
+  }
+
+  function offerButton(label, prefixHtml = "") {
+    // Hand paging back to the user: no auto-load, one page per click.
+    observer.disconnect();
+    statusEl.innerHTML = `${prefixHtml}<button class="load-more">${esc(label)}</button>`;
+    $(".load-more", statusEl).addEventListener("click", () => {
+      emptyStreak = 0;
+      observer.observe($("#chg-sentinel", view));
+      loadMore();
+    });
+  }
+
+  async function loadMore() {
+    if (loading || stopped) return;
+    if (!view.isConnected) { observer.disconnect(); return; }
+    loading = true;
+    statusEl.innerHTML = '<span class="muted">Loading more…</span>';
+    try {
+      const page = await fetchOlder(oldest);
+      if (!view.isConnected) { observer.disconnect(); return; }
+      if (page.changes.length) {
         $("#chg-rows", view).insertAdjacentHTML(
           "beforeend", page.changes.map(changeRow).join("")
         );
-        if (page.changes.length) {
-          fillThreadBadges(view, `changes=${page.changes.map((c) => c.change).join(",")}`);
-        }
-        if (page.oldest) oldest = page.oldest;
-        // rawCount reflects pre-filter rows: only stop when p4 itself ran dry.
-        if (page.rawCount < page.pageSize) more.remove();
-        else more.disabled = false;
-      } catch (err) {
-        more.textContent = "Error: " + err.message;
+        fillThreadBadges(view, `changes=${page.changes.map((c) => c.change).join(",")}`);
+        emptyStreak = 0;
+      } else {
+        emptyStreak++;
       }
-    });
+      if (page.oldest) oldest = page.oldest;
+      if (!full(page) || !page.oldest) {
+        stop('<span class="muted">End of list</span>');
+      } else if (emptyStreak >= 3) {
+        offerButton("Keep searching older changes");
+      } else {
+        statusEl.innerHTML = "";
+        requestAnimationFrame(() => { if (inTriggerZone()) loadMore(); });
+      }
+    } catch (err) {
+      if (err.status === 401) { stop(""); return; }
+      offerButton(
+        "Retry",
+        `<span class="page-err">Couldn't load more: ${esc(err.message)}</span>`
+      );
+    } finally {
+      loading = false;
+    }
   }
-});
+}
 
 /* ---------- change detail ---------- */
 
