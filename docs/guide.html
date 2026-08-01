@@ -333,23 +333,46 @@
     </div>
   </section>
 
-  <section class="cl" id="settings">
+  <section class="cl" id="stats">
     <div class="gutter">
       <div class="clno">app-side</div>
       <div class="clmeta">step 14</div>
     </div>
     <div class="content">
+      <h2>See where the work is going</h2>
+      <p class="kicker">Stats answers the questions a list of changelists
+        can’t: how busy is this depot lately, which areas are moving, and who
+        is submitting. Switch the time axis between day, week, month and year;
+        step the path chart deeper or click a bar to drill into that directory;
+        click an account to see only theirs. The three charts share one filter
+        set, so narrowing any of them narrows the rest — and clicking a bar
+        hands that exact slice to the Changes list. Numbers come from the same
+        local index that makes changelist search fast, built with your own
+        Perforce ticket, so they only ever count what you are allowed to see.</p>
+      <figure class="shot">
+        <img src="./assets/guide-stats.png" alt="The Stats page: four tiles (submits, accounts, top-level areas, per day), a monthly bar chart of submits over time with day/week/month/year buttons, a horizontal bar chart of submits per depot directory with a depth stepper, and one of submits per account" width="1180" height="948" loading="lazy">
+        <figcaption>Stats — submits over time, by path, and by account</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="cl" id="settings">
+    <div class="gutter">
+      <div class="clno">app-side</div>
+      <div class="clmeta">step 15</div>
+    </div>
+    <div class="content">
       <h2>Keep what you use, switch off the rest</h2>
       <p class="kicker">The gear in the top bar opens Settings. Reviews,
-        comments, mentions, write operations, favorites and the fast
-        changelist index can each be turned off — the switches are stored
+        comments, mentions, write operations, favorites, stats and the
+        fast changelist index can each be turned off — the switches are stored
         with your account, so they follow you to any browser, while theme
         and diff layout stay per device. Whoever runs the server can turn
         a feature off for everyone, in which case its row here says so and
         stays put. Nothing is deleted either way: switch a feature back on
         and everything written while it was on is where you left it.</p>
       <figure class="shot">
-        <img src="./assets/guide-settings.png" alt="The Settings page: a Features list with checkboxes for comments, mentions, reviews, write operations, favorites and fast changelist search, an Appearance list with theme, diff layout and markdown view, and an About section" width="1180" height="910" loading="lazy">
+        <img src="./assets/guide-settings.png" alt="The Settings page: a Features list with checkboxes for comments, mentions, reviews, write operations, favorites, fast changelist search and stats, an Appearance list with theme, diff layout and markdown view, and an About section" width="1180" height="966" loading="lazy">
         <figcaption>Settings — features per account, appearance per device</figcaption>
       </figure>
     </div>

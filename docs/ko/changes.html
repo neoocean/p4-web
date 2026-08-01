@@ -61,6 +61,21 @@
       <a href="https://github.com/neoocean/p4-web">GitHub</a>에 미러링됩니다.</p>
   </header>
 
+  <section class="cl" id="d-2026-08-02">
+    <div class="gutter">
+      <div class="clno">2026-08-02</div>
+      <div class="clmeta">12일차</div>
+    </div>
+    <div class="content">
+      <h2>작업이 어디로 가고 있는지</h2>
+      <ul class="chg-list">
+        <li><span class="chg-cl">69156</span><span class="chg-title">통계 페이지가 생겼습니다 — 일·주·월·연 단위 서브밋, 드릴다운이 되는 경로별 서브밋, 계정별 서브밋 <span class="chg-note">(세 차트가 하나의 필터를 함께 읽기 때문에 기간을 좁히거나 디렉토리로 들어가면 나머지도 같이 좁아지고, 막대를 누르면 그 뒤의 체인지리스트가 열립니다. 경로 차트는 고정된 깊이가 아니라 지금 보고 있는 곳의 한 단계 아래에서 시작하며, 그 깊이에 아무것도 건드리지 않은 서브밋이 몇 건인지도 함께 표시합니다 — 이 줄이 없으면 깊이 들어갈수록 총계가 조용히 줄어듭니다. 차트는 순수 SVG입니다. 필요한 도형이 막대와 축뿐인데 차트 라이브러리를 쓰면 그것 때문에 콘텐츠 보안과 공급망 고정을 다시 풀어야 합니다)</span></span></li>
+        <li><span class="chg-cl">69155</span><span class="chg-title">그 뒤의 집계는 로컬 체인지리스트 인덱스에서 나옵니다 <span class="chg-note">(덕분에 1년치 이력이 서버의 모든 체인지리스트를 훑는 대신 밀리초 단위 질의가 되고, 인덱스가 본인의 퍼포스 티켓으로 만들어지기 때문에 볼 수 있는 것만 세어집니다. 버킷은 사용자의 시간대로 자릅니다 — 그대로 접으면 서울의 오전 서브밋이 전날로 밀립니다 — 그리고 주는 월요일에 시작하되 오래된 SQLite가 만들지 못하는 ISO 주 번호 대신 날짜를 키로 씁니다)</span></span></li>
+        <li><span class="chg-cl">69151</span><span class="chg-title">인덱스에 체인지별 디렉토리 롤업을 넣어 경로 통계가 즉시 나옵니다 <span class="chg-note">(질의할 때마다 900만 개의 파일 행을 접으면 28초가 걸립니다. 각 체인지의 디렉토리를 미리 한 번 펼쳐 두면 행이 7% 늘어나는 대신 같은 질문이 한 자릿수 밀리초로 끝납니다. 이전에 만들어진 인덱스는 백그라운드에서 채워지며 그동안에도 페이지는 그대로 쓸 수 있습니다 — 기간·계정 차트는 이미 정확하고, 페이지가 그 사실을 알려 줍니다)</span></span></li>
+      </ul>
+    </div>
+  </section>
+
   <section class="cl" id="d-2026-07-26">
     <div class="gutter">
       <div class="clno">2026-07-26</div>

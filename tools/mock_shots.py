@@ -18,15 +18,28 @@ import json
 import os
 import re
 import sys
+import time
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
 # pip's playwright wants a chromium build that isn't cached here, so the
-# binary is named explicitly; override with P4WEB_CHROME.
-EXE = os.environ.get("P4WEB_CHROME") or os.path.expanduser(
-    "~/Library/Caches/ms-playwright/chromium_headless_shell-1223/"
-    "chrome-headless-shell-mac-arm64/chrome-headless-shell")
+# binary is found by hand; override with P4WEB_CHROME. Pinning the build
+# number in the path meant this broke on every playwright bump, so take
+# the newest cached one instead.
+def _chrome():
+    override = os.environ.get("P4WEB_CHROME")
+    if override:
+        return override
+    cache = Path.home() / "Library/Caches/ms-playwright"
+    builds = sorted(cache.glob("chromium_headless_shell-*/chrome-headless-shell-*/chrome-headless-shell"),
+                    key=lambda p: int(re.search(r"-(\d+)/", str(p)).group(1)))
+    if not builds:
+        sys.exit("no cached chromium headless shell — run: .venv/bin/playwright install chromium")
+    return str(builds[-1])
+
+
+EXE = _chrome()
 BASE = "http://127.0.0.1:8899"
 OUT = Path(__file__).resolve().parent.parent / "docs" / "assets"
 
@@ -36,7 +49,7 @@ NOW = 1781524800  # fixed (2026-06-15) so re-runs produce identical images
 # Screenshots always show the whole app, whatever a real instance has
 # switched off.
 ALL_FEATURES = {"comments": True, "mentions": True, "reviews": True,
-                "write": True, "favorites": True, "index": True}
+                "write": True, "favorites": True, "index": True, "stats": True}
 
 USERS = [
     {"user": "alice", "fullName": "Alice Nakamura", "email": "alice@rocket.example",
@@ -263,6 +276,65 @@ FAV_CHANGES = {"changes": [
      "Package the telemetry schema with the nightly build."},
 ], "rawCount": 3, "pageSize": 100, "oldest": 4802}
 
+# --- stats: a plausible year for //rocket ---------------------------------
+#
+# Shapes must match app/stats.py exactly, empty buckets included: the
+# page fills nothing in for itself, so a fixture that skips a quiet month
+# would photograph a chart the real app cannot draw.
+
+def _months(count):
+    """The last `count` month keys ending at NOW, oldest first."""
+    year, month = time.gmtime(NOW).tm_year, time.gmtime(NOW).tm_mon
+    keys = []
+    for back in range(count - 1, -1, -1):
+        m = month - back
+        y = year + (m - 1) // 12
+        keys.append("%04d-%02d" % (y, (m - 1) % 12 + 1))
+    return keys
+
+
+_TIMELINE_COUNTS = [61, 78, 92, 74, 110, 128, 96, 141, 133, 152, 168, 84]
+
+STATS_STATUS = {
+    "changes": 4821, "first": NOW - 330 * DAY, "last": NOW - 3600,
+    "oldestChange": 1, "newestChange": 4821, "fullyBackfilled": True,
+    "updated": NOW - 600,
+    "dirs": {"built": 4821, "total": 4821, "done": True, "running": False,
+             "error": None},
+}
+
+STATS_SUMMARY = {"changes": 1317, "authors": 4, "dirs": 5,
+                 "first": NOW - 330 * DAY, "last": NOW - 3600,
+                 "days": 331, "perDay": 3.98}
+
+STATS_TIMELINE = {
+    "bucket": "month", "requestedBucket": "month", "promoted": False,
+    "total": sum(_TIMELINE_COUNTS),
+    "rows": [{"bucket": key, "changes": n}
+             for key, n in zip(_months(len(_TIMELINE_COUNTS)), _TIMELINE_COUNTS)],
+}
+
+STATS_PATHS = {
+    "depth": 2, "total": 1317, "uncovered": 12, "truncated": False, "maxDepth": 6,
+    "rows": [
+        {"dir": "//rocket/engine", "changes": 612},
+        {"dir": "//rocket/ground", "changes": 388},
+        {"dir": "//rocket/tests", "changes": 261},
+        {"dir": "//rocket/docs", "changes": 143},
+        {"dir": "//rocket/tools", "changes": 97},
+    ],
+}
+
+STATS_USERS = {
+    "total": 1317, "truncated": False,
+    "rows": [
+        {"user": "alice", "changes": 498},
+        {"user": "bob", "changes": 421},
+        {"user": "carol", "changes": 286},
+        {"user": "dana", "changes": 112},
+    ],
+}
+
 
 def handle(route, request):
     url = request.url[len(BASE):]
@@ -283,7 +355,7 @@ def handle(route, request):
     if path == "/api/features":
         return send({"server": ALL_FEATURES, "user": {},
                      "effective": ALL_FEATURES, "locked": [],
-                     "depends": {"mentions": "comments"}})
+                     "depends": {"mentions": "comments", "stats": "index"}})
     if path == "/api/users":
         return send({"users": USERS, "groups": GROUPS})
     if path == "/api/jobs":
@@ -321,6 +393,16 @@ def handle(route, request):
         return send({"unseen": MENTIONS["unseen"]})
     if path == "/api/changes":
         return send(FAV_CHANGES)
+    if path == "/api/stats/status":
+        return send(STATS_STATUS)
+    if path == "/api/stats/summary":
+        return send(STATS_SUMMARY)
+    if path == "/api/stats/timeline":
+        return send(STATS_TIMELINE)
+    if path == "/api/stats/paths":
+        return send(STATS_PATHS)
+    if path == "/api/stats/users":
+        return send(STATS_USERS)
     if path.startswith("/api/index/"):
         return send({"changes": 0, "newest": 0, "oldest": 0, "updated": 0,
                      "fullyBackfilled": False, "results": [], "changes_list": []})
@@ -415,6 +497,18 @@ with sync_playwright() as p:
     page.hover("#more-menu .dropdown-toggle")
     page.wait_for_timeout(300)
     shot(page, "more")
+
+    # --- stats: submit activity by time, path and account ---
+    # The More menu above opens on hover and would hang over this shot
+    # too, so park the pointer first (same trap as the settings shot).
+    # Not mid-page either: a chart row highlights under the cursor and
+    # the picture then shows a hover state nobody asked about.
+    page.mouse.move(4, 4)
+    page.wait_for_timeout(300)
+    page.evaluate("location.hash = '#/stats'")
+    page.wait_for_selector("#st-paths .chart-row", timeout=15000)
+    page.wait_for_timeout(400)
+    shot(page, "stats")
 
     # --- settings: the feature switches ---
     # The More menu above opens on hover and would still be hanging over

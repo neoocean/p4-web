@@ -61,6 +61,21 @@
       <a href="https://github.com/neoocean/p4-web">GitHub</a>.</p>
   </header>
 
+  <section class="cl" id="d-2026-08-02">
+    <div class="gutter">
+      <div class="clno">2026-08-02</div>
+      <div class="clmeta">day 12</div>
+    </div>
+    <div class="content">
+      <h2>Where the work is going</h2>
+      <ul class="chg-list">
+        <li><span class="chg-cl">69156</span><span class="chg-title">A Stats page: submits by day, week, month or year, by depot path with drill-down, and by account <span class="chg-note">(all three charts read one filter set, so narrowing the time range or stepping into a directory narrows the others too, and clicking any bar opens the changelists behind it. The path chart starts one level below wherever you are rather than at a fixed depth, and says how many submits touched nothing that deep — without that line the totals quietly shrink the further in you go. Charts are plain SVG: the only shapes needed are a bar and an axis, and a chart library would have meant unpinning the content-security and supply-chain rules for it)</span></span></li>
+        <li><span class="chg-cl">69155</span><span class="chg-title">The aggregates behind it, served from the local changelist index <span class="chg-note">(so a year of history is a millisecond query rather than a walk through every changelist on the server, and because the index is built with your own Perforce ticket the numbers only ever count what you may see. Buckets are cut in your timezone — folded raw, a morning submit in Seoul lands on the previous day — and weeks start Monday, keyed by the date rather than an ISO week number that older SQLite builds can’t format)</span></span></li>
+        <li><span class="chg-cl">69151</span><span class="chg-title">Per-change directory rollup in the index, so path stats are instant <span class="chg-note">(folding nine million file rows on every query measured 28 seconds; expanding each change’s directories once, up front, is 7% more rows and turns the same question into single-digit milliseconds. An index built before this fills in on a background pass while the page stays usable — the time and account charts are already exact, and the page says so)</span></span></li>
+      </ul>
+    </div>
+  </section>
+
   <section class="cl" id="d-2026-07-26">
     <div class="gutter">
       <div class="clno">2026-07-26</div>

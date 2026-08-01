@@ -1710,3 +1710,107 @@ dialog textarea { font-family: var(--mono); }
   font-weight: 500;
   margin-left: 6px;
 }
+
+/* ---------- stats ---------- */
+
+.stats-coverage { font-size: 12px; margin: 0 0 10px; }
+.stats-crumbs { margin-bottom: 10px; }
+
+.stat-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  min-width: 0;
+}
+.stat-value { font-size: 20px; font-weight: 650; letter-spacing: -0.02em; }
+.stat-label { font-size: 12px; color: var(--muted); }
+
+.chart-block { margin: 0 0 22px; }
+.chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+.chart-head h3 { margin: 0; font-size: 14px; }
+.chart-note { font-size: 12px; margin: 0 0 6px; }
+.chart-slot { overflow-x: auto; }
+.chart-readout { font-size: 12px; margin: 4px 0 0; min-height: 1em; }
+
+/* Presets and the bucket/depth switches: one row of small buttons that
+   read as a group, not as four unrelated actions. */
+.preset-group, .seg { display: inline-flex; align-items: center; gap: 0; }
+.preset-group button, .seg button {
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 9px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-right-width: 0;
+  cursor: pointer;
+}
+.preset-group button:first-child, .seg button:first-child {
+  border-radius: 6px 0 0 6px;
+}
+.preset-group button:last-child, .seg button:last-child {
+  border-radius: 0 6px 6px 0;
+  border-right-width: 1px;
+}
+.preset-group button:hover, .seg button:hover { background: var(--bg); }
+.preset-group button.on, .seg button.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.seg-label {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-right-width: 0;
+}
+
+/* The charts themselves. One series, so one colour and no legend --
+   the heading names what the bars are. Grid and axis stay recessive. */
+.chart { display: block; max-width: 100%; }
+.chart-bar { fill: var(--accent); }
+.chart-grid { stroke: var(--border); stroke-width: 1; }
+.chart-axis { stroke: var(--border); stroke-width: 1; }
+.chart-tick { fill: var(--muted); font-size: 10px; }
+.chart-label { fill: var(--text); font-size: 12px; }
+.chart-value { fill: var(--muted); font-size: 11px; }
+.chart-hit { fill: transparent; cursor: pointer; }
+.chart-col, .chart-row { cursor: pointer; }
+.chart-col:hover .chart-bar, .chart-row:hover .chart-bar { opacity: 0.72; }
+.chart-col:hover .chart-hit { fill: var(--accent-soft); }
+.chart-bar, .chart-tick, .chart-label, .chart-value { pointer-events: none; }
+
+.chart-row:hover .chart-hit { fill: var(--accent-soft); }
+.chart-row:focus { outline: none; }
+.chart-row:focus-visible .chart-hit { fill: var(--accent-soft); stroke: var(--accent); }
+.chart-table { margin-top: 8px; }
+.chart-table > summary {
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 0;
+}
+.chart-table .listing { margin-top: 4px; }
+
+@media (max-width: 768px) {
+  .stat-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .chart-head { align-items: flex-start; }
+}

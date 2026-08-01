@@ -92,7 +92,7 @@ class ApiError extends Error {
    the same flags itself; this only keeps dead chrome off the screen. */
 const FEATURE_DEFAULTS = {
   comments: true, mentions: true, reviews: true,
-  write: true, favorites: true, index: true,
+  write: true, favorites: true, index: true, stats: true,
 };
 let FEATURES = { ...FEATURE_DEFAULTS };
 
@@ -107,6 +107,7 @@ const FEATURE_LABELS = {
   write: "Write operations",
   favorites: "Favorites",
   index: "Fast changelist search",
+  stats: "Stats",
 };
 
 let featuresPromise = null;
@@ -156,6 +157,7 @@ function applyFeatureNav() {
   hide('[data-nav="my"]', feat("write"));
   hide('#more-menu a[href="#/reviews"]', feat("reviews"));
   hide('#more-menu a[href="#/mentions"]', feat("mentions"));
+  hide('#more-menu a[href="#/stats"]', feat("stats"));
   if (!feat("mentions")) hide("#mentions-btn", false);
 }
 
@@ -2161,6 +2163,461 @@ registerRoute(/^#\/change\/(\d+)$/, async (view, m) => {
 
 /* ---------- metadata browsers ---------- */
 
+/* ---------- stats ----------
+   Submit activity along three axes that share one filter set, so
+   narrowing any of them narrows the others. Charts are hand-drawn SVG:
+   the only shapes needed are a bar and an axis, and vendoring a chart
+   library would undo the CSP and supply-chain pinning for that. */
+
+const STATS_BUCKETS = [["day", "Day"], ["week", "Week"], ["month", "Month"], ["year", "Year"]];
+const STATS_PRESETS = [["30", "30 days"], ["90", "90 days"], ["365", "1 year"], ["", "All time"]];
+
+function fmtNum(n) {
+  return Number(n || 0).toLocaleString();
+}
+
+function dirDepth(dir) {
+  return dir && dir.startsWith("//") ? dir.slice(2).split("/").length : 0;
+}
+
+function ymd(date) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function bucketRange(key, bucket) {
+  /* A bar's own span, so clicking it can hand the same window to the
+     Changes list. */
+  if (bucket === "day") return [key, key];
+  if (bucket === "week") {
+    const start = new Date(key + "T00:00:00");
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    return [key, ymd(end)];
+  }
+  if (bucket === "month") {
+    const [y, m] = key.split("-").map(Number);
+    return [`${key}-01`, ymd(new Date(y, m, 0))];
+  }
+  return [`${key}-01-01`, `${key}-12-31`];
+}
+
+function bucketLabel(key, bucket) {
+  if (bucket === "month") return key.slice(2);      // 26-07
+  if (bucket === "year") return key;
+  return key.slice(5);                              // 07-21
+}
+
+function barPath(x, y, w, h, r) {
+  /* Rounded at the data end only — the baseline end stays square so
+     bars sit on the axis instead of floating above it. */
+  const radius = Math.max(0, Math.min(r, w / 2, h));
+  if (h <= 0) return "";
+  return `M${x} ${y + h}V${y + radius}a${radius} ${radius} 0 0 1 ${radius} ${-radius}h${w - 2 * radius}`
+    + `a${radius} ${radius} 0 0 1 ${radius} ${radius}V${y + h}Z`;
+}
+
+function barPathH(x, y, w, h, r) {
+  const radius = Math.max(0, Math.min(r, h / 2, w));
+  if (w <= 0) return "";
+  return `M${x} ${y}h${w - radius}a${radius} ${radius} 0 0 1 ${radius} ${radius}v${h - 2 * radius}`
+    + `a${radius} ${radius} 0 0 1 ${-radius} ${radius}H${x}Z`;
+}
+
+function niceCeil(value) {
+  if (value <= 5) return Math.max(value, 1);
+  const magnitude = Math.pow(10, Math.floor(Math.log10(value)));
+  return Math.ceil(value / (magnitude / 2)) * (magnitude / 2);
+}
+
+function timelineChartSvg(rows, bucket, width) {
+  const height = width < 520 ? 150 : 190;
+  const padLeft = 46, padRight = 8, padTop = 12, padBottom = 24;
+  const plotW = Math.max(width - padLeft - padRight, 40);
+  const plotH = height - padTop - padBottom;
+  const n = rows.length;
+  const top = niceCeil(Math.max(...rows.map((r) => r.changes), 1));
+  const slot = plotW / n;
+  const gap = slot > 6 ? 2 : 0;
+  // Capped, and centred in its slot: four monthly bars across a wide
+  // window would otherwise be 270px slabs.
+  const barW = Math.max(Math.min(slot - gap, 44), 1);
+  const peak = rows.reduce((best, r, i) => (r.changes > rows[best].changes ? i : best), 0);
+
+  const grid = [0, 0.5, 1].map((f) => {
+    const y = padTop + plotH - f * plotH;
+    return `<line class="chart-grid" x1="${padLeft}" y1="${y.toFixed(1)}" x2="${padLeft + plotW}" y2="${y.toFixed(1)}"/>`
+      + `<text class="chart-tick" x="${padLeft - 6}" y="${(y + 4).toFixed(1)}" text-anchor="end">${fmtNum(Math.round(top * f))}</text>`;
+  }).join("");
+
+  // One label per ~64px, never every bar.
+  const step = Math.max(1, Math.ceil(n / Math.max(1, Math.floor(plotW / 64))));
+  const bars = rows.map((r, i) => {
+    const h = (r.changes / top) * plotH;
+    const slotX = padLeft + i * slot;
+    const x = slotX + (slot - gap - barW) / 2;
+    const y = padTop + plotH - h;
+    const label = `${r.bucket}: ${fmtNum(r.changes)} submit${r.changes === 1 ? "" : "s"}`;
+    // The hit rect is the column, not the bar: a quiet week is a 1px
+    // sliver, and it still has to be hoverable and clickable.
+    const hit = `<rect class="chart-hit" x="${slotX.toFixed(1)}" y="${padTop}" width="${Math.max(slot, 1).toFixed(1)}" height="${plotH}"/>`;
+    const bar = r.changes
+      ? `<path class="chart-bar" d="${barPath(x, y, barW, h, 4)}"/>`
+      : "";
+    const tick = i % step === 0 || i === n - 1
+      ? `<text class="chart-tick" x="${(x + barW / 2).toFixed(1)}" y="${height - 8}" text-anchor="middle">${esc(bucketLabel(r.bucket, bucket))}</text>`
+      : "";
+    const value = i === peak && r.changes && slot > 14
+      ? `<text class="chart-value" x="${(x + barW / 2).toFixed(1)}" y="${(y - 4).toFixed(1)}" text-anchor="middle">${fmtNum(r.changes)}</text>`
+      : "";
+    return `<g class="chart-col" data-bucket="${esc(r.bucket)}" data-count="${r.changes}">`
+      + `<title>${esc(label)}</title>${bar}${value}${hit}</g>${tick}`;
+  }).join("");
+
+  return `<svg class="chart" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img"
+    aria-label="Submits per ${esc(bucket)}">${grid}
+    <line class="chart-axis" x1="${padLeft}" y1="${padTop + plotH}" x2="${padLeft + plotW}" y2="${padTop + plotH}"/>
+    ${bars}</svg>`;
+}
+
+function rankChartSvg(rows, width, opts) {
+  const rowH = 26, barH = 15;
+  const height = rows.length * rowH + 4;
+  const labelW = Math.min(Math.max(width * 0.42, 90), 260);
+  const valueW = 52;
+  const plotW = Math.max(width - labelW - valueW, 30);
+  const top = Math.max(...rows.map((r) => r.changes), 1);
+  const bars = rows.map((r, i) => {
+    const y = i * rowH + 2;
+    const w = (r.changes / top) * plotW;
+    const label = opts.label(r);
+    const short = label.length > 34 ? "…" + label.slice(-33) : label;
+    return `<g class="chart-row" data-key="${esc(opts.key(r))}" tabindex="0" role="button"
+        aria-label="${esc(label)}: ${fmtNum(r.changes)} submits">
+      <title>${esc(label)}: ${fmtNum(r.changes)} submits</title>
+      <rect class="chart-hit" x="0" y="${y}" width="${width}" height="${rowH - 2}"/>
+      <text class="chart-label" x="0" y="${y + barH}" >${esc(short)}</text>
+      <path class="chart-bar" d="${barPathH(labelW, y + 2, w, barH, 4)}"/>
+      <text class="chart-value" x="${labelW + w + 6}" y="${y + barH}">${fmtNum(r.changes)}</text>
+    </g>`;
+  }).join("");
+  return `<svg class="chart" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}"
+    role="img" aria-label="${esc(opts.title)}">${bars}</svg>`;
+}
+
+function statsTableHtml(rows, head, cell) {
+  return `<details class="chart-table"><summary>Table</summary>
+    <table class="listing"><thead><tr><th>${esc(head[0])}</th><th>${esc(head[1])}</th></tr></thead>
+    <tbody>${rows.map(cell).join("")}</tbody></table></details>`;
+}
+
+function statsQuery(state, extra = {}) {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries({ ...state, ...extra })) {
+    if (v) q.set(k, v);
+  }
+  return q.toString();
+}
+
+function statsHash(state, extra = {}) {
+  const qs = statsQuery(state, extra);
+  return `#/stats${qs ? "?" + qs : ""}`;
+}
+
+registerRoute(/^#\/stats/, async (view) => {
+  if (!(await guardFeature(view, "stats"))) return;
+  const [, params] = parseHashQuery(location.hash);
+  const state = {
+    from: params.get("from") || "",
+    to: params.get("to") || "",
+    path: params.get("path") || "",
+    user: params.get("user") || "",
+    bucket: params.get("bucket") || "month",
+    depth: params.get("depth") || "",
+  };
+  // Depth follows the drill-down instead of being an absolute: from the
+  // root that is //depot/area, and one step further in from wherever
+  // you are. A fixed depth silently drops every change whose files sit
+  // shallower than it -- 34% of them at depth 4 on a real depot.
+  const depth = Number(state.depth)
+    || (state.path ? Math.min(dirDepth(state.path) + 1, 6) : 2);
+  const tz = -new Date().getTimezoneOffset();
+
+  const filterQ = new URLSearchParams();
+  if (state.from) filterQ.set("date_from", state.from);
+  if (state.to) filterQ.set("date_to", state.to);
+  if (state.path) filterQ.set("path", state.path);
+  if (state.user) filterQ.set("user", state.user);
+  filterQ.set("tz", String(tz));
+
+  const crumbs = [];
+  if (state.path) {
+    const parts = state.path.slice(2).split("/");
+    let acc = "";
+    crumbs.push(`<a href="${esc(statsHash(state, { path: "", depth: "" }))}">all depots</a>`);
+    parts.forEach((part, i) => {
+      acc += (i ? "/" : "//") + part;
+      const isLast = i === parts.length - 1;
+      crumbs.push(isLast
+        ? `<span class="crumb-here">${esc(part)}</span>`
+        : `<a href="${esc(statsHash(state, { path: acc, depth: "" }))}">${esc(part)}</a>`);
+    });
+  }
+
+  view.innerHTML = `
+    <div class="pane">
+      <h2 class="search-title">Stats</h2>
+      <p class="stats-coverage muted" id="st-coverage">Loading coverage…</p>
+      <form id="st-filter" class="filterbar wrap">
+        <span class="preset-group">${STATS_PRESETS.map(([days, label]) => {
+          const on = (days === "" && !state.from) || (days && state.from === presetFrom(days));
+          return `<button type="button" class="preset ${on ? "on" : ""}" data-days="${days}">${esc(label)}</button>`;
+        }).join("")}</span>
+        <label>From <input name="from" value="${esc(state.from)}" placeholder="YYYY-MM-DD"
+          pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" title="YYYY-MM-DD" size="11"></label>
+        <label>To <input name="to" value="${esc(state.to)}" placeholder="YYYY-MM-DD"
+          pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" title="YYYY-MM-DD" size="11"></label>
+        <label>User <input name="user" list="user-list" value="${esc(state.user)}" placeholder="any user" size="10"></label>
+        <button type="submit">Apply</button>
+      </form>
+      ${crumbs.length ? `<nav class="breadcrumbs stats-crumbs">${crumbs.join('<span class="crumb-sep">/</span>')}</nav>` : ""}
+      <div class="stat-tiles" id="st-tiles"></div>
+
+      <section class="chart-block">
+        <div class="chart-head">
+          <h3>Submits over time</h3>
+          <span class="seg" id="st-buckets">${STATS_BUCKETS.map(([key, label]) =>
+            `<button type="button" class="${key === state.bucket ? "on" : ""}" data-bucket="${key}">${label}</button>`
+          ).join("")}</span>
+        </div>
+        <p class="chart-note muted" id="st-timeline-note"></p>
+        <div class="chart-slot" id="st-timeline">Loading…</div>
+      </section>
+
+      <section class="chart-block">
+        <div class="chart-head">
+          <h3>Submits by path</h3>
+          <span class="seg" id="st-depth">
+            <button type="button" data-step="-1" title="Shallower">&minus;</button>
+            <span class="seg-label">depth ${depth}</span>
+            <button type="button" data-step="1" title="Deeper">+</button>
+          </span>
+        </div>
+        <p class="chart-note muted" id="st-paths-note"></p>
+        <div class="chart-slot" id="st-paths">Loading…</div>
+      </section>
+
+      <section class="chart-block">
+        <div class="chart-head"><h3>Submits by account</h3></div>
+        <p class="chart-note muted" id="st-users-note"></p>
+        <div class="chart-slot" id="st-users">Loading…</div>
+      </section>
+    </div>`;
+
+  ensureUserDatalist();
+
+  $("#st-filter", view).addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    go(statsHash(state, {
+      from: fd.get("from"), to: fd.get("to"), user: fd.get("user"),
+    }));
+  });
+  for (const button of view.querySelectorAll("#st-filter .preset")) {
+    button.addEventListener("click", () => {
+      const days = button.dataset.days;
+      go(statsHash(state, { from: days ? presetFrom(days) : "", to: "" }));
+    });
+  }
+  for (const button of view.querySelectorAll("#st-buckets button")) {
+    button.addEventListener("click", () => go(statsHash(state, { bucket: button.dataset.bucket })));
+  }
+  for (const button of view.querySelectorAll("#st-depth button")) {
+    button.addEventListener("click", () => {
+      const next = Math.min(Math.max(depth + Number(button.dataset.step), 1), 6);
+      if (next !== depth) go(statsHash(state, { depth: String(next) }));
+    });
+  }
+
+  const changesHash = (extra = {}) => {
+    const q = new URLSearchParams();
+    const merged = { path: state.path, user: state.user, from: state.from, to: state.to, ...extra };
+    for (const [k, v] of Object.entries(merged)) if (v) q.set(k, v);
+    return `#/changes?${q}`;
+  };
+
+  const width = () => Math.max(($("#st-timeline", view) || {}).clientWidth || 320, 260);
+  const drawn = { timeline: null, paths: null, users: null };
+
+  api(`/api/stats/status`).then((cov) => {
+    if (!view.isConnected) return;
+    const line = $("#st-coverage", view);
+    const since = cov.first ? fmtTime(cov.first).slice(0, 10) : "—";
+    let text = `${fmtNum(cov.changes)} indexed submits since ${since} · counts only what your Perforce permissions show you.`;
+    if (!cov.dirs.done) {
+      const pct = cov.dirs.total ? Math.floor((cov.dirs.built / cov.dirs.total) * 100) : 0;
+      text += ` Path stats still building (${pct}%) — time and account charts are already complete.`;
+      setTimeout(() => { if (view.isConnected) route(); }, 5000);
+    }
+    if (state.from && cov.first && new Date(state.from + "T00:00:00").getTime() / 1000 < cov.first) {
+      text += ` The index starts at ${since}; anything before that is missing —`
+        + ` extend it from the Changes page.`;
+    }
+    line.textContent = text;
+  }).catch(() => {});
+
+  api(`/api/stats/summary?${filterQ}`).then((s) => {
+    if (!view.isConnected) return;
+    const tiles = [
+      ["Submits", fmtNum(s.changes)],
+      ["Accounts", fmtNum(s.authors)],
+      ["Top-level areas", fmtNum(s.dirs)],
+      ["Per day", s.perDay ? s.perDay.toFixed(s.perDay < 10 ? 1 : 0) : "0"],
+    ];
+    $("#st-tiles", view).innerHTML = tiles.map(([label, value]) =>
+      `<div class="stat-tile"><span class="stat-value">${esc(value)}</span><span class="stat-label">${esc(label)}</span></div>`
+    ).join("");
+  }).catch((err) => { if (err.status !== 401) $("#st-tiles", view).innerHTML = errorBoxHtml(err); });
+
+  const drawTimeline = (data) => {
+    const slot = $("#st-timeline", view);
+    if (!slot) return;
+    if (!data.rows.length) {
+      slot.innerHTML = '<p class="muted">No submits in this range.</p>';
+      return;
+    }
+    slot.innerHTML = timelineChartSvg(data.rows, data.bucket, width())
+      + `<p class="chart-readout muted" id="st-readout">&nbsp;</p>`
+      + statsTableHtml(data.rows, [data.bucket === "week" ? "Week of" : "Period", "Submits"],
+        (r) => `<tr><td>${esc(r.bucket)}</td><td>${fmtNum(r.changes)}</td></tr>`);
+    if (data.promoted) {
+      $("#st-timeline-note", view).textContent =
+        `That range holds too many ${data.requestedBucket} buckets to read — showing ${data.bucket}s.`;
+    }
+    const readout = $("#st-readout", view);
+    slot.addEventListener("mouseover", (e) => {
+      const col = e.target.closest(".chart-col");
+      if (!col) return;
+      readout.textContent = `${col.dataset.bucket}: ${fmtNum(col.dataset.count)} submits`;
+    });
+    slot.addEventListener("mouseleave", () => { readout.innerHTML = "&nbsp;"; });
+    slot.addEventListener("click", (e) => {
+      const col = e.target.closest(".chart-col");
+      if (!col) return;
+      let [from, to] = bucketRange(col.dataset.bucket, data.bucket);
+      // Clip the bar's own span to the active range, or the listing
+      // would show days the bar never counted (a month bar under a
+      // "last 90 days" filter starts mid-month).
+      if (state.from && state.from > from) from = state.from;
+      if (state.to && state.to < to) to = state.to;
+      go(changesHash({ from, to }));
+    });
+  };
+  api(`/api/stats/timeline?bucket=${encodeURIComponent(state.bucket)}&${filterQ}`).then((data) => {
+    if (!view.isConnected) return;
+    drawn.timeline = data;
+    drawTimeline(data);
+  }).catch((err) => { if (err.status !== 401) $("#st-timeline", view).innerHTML = errorBoxHtml(err); });
+
+  const drawPaths = (data) => {
+    const slot = $("#st-paths", view);
+    if (!slot) return;
+    if (!data.rows.length) {
+      slot.innerHTML = `<p class="muted">Nothing at depth ${depth} in this range.</p>`;
+    } else {
+      const strip = (dir) => (state.path && dir.startsWith(state.path + "/")
+        ? dir.slice(state.path.length + 1) : dir);
+      slot.innerHTML = rankChartSvg(data.rows, width(), {
+        title: "Submits by path",
+        key: (r) => r.dir,
+        label: (r) => strip(r.dir),
+      }) + statsTableHtml(data.rows, ["Path", "Submits"], (r) =>
+        `<tr><td><a href="#/browse${esc(r.dir)}">${esc(r.dir)}</a></td><td>${fmtNum(r.changes)}</td></tr>`);
+      slot.addEventListener("click", (e) => {
+        const row = e.target.closest(".chart-row");
+        if (row) go(statsHash(state, { path: row.dataset.key, depth: "" }));
+      });
+      slot.addEventListener("keydown", (e) => {
+        const row = e.target.closest(".chart-row");
+        if (row && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          go(statsHash(state, { path: row.dataset.key, depth: "" }));
+        }
+      });
+    }
+    // A change counts once per directory it touched, so these add up to
+    // more than the total; and changes that never reach this depth are
+    // in no bar at all. Both go on the page rather than in a comment.
+    const notes = [`A change is counted in every directory it touched, so the bars can add up to more than ${fmtNum(data.total)}.`];
+    if (data.uncovered) notes.push(`${fmtNum(data.uncovered)} submit${data.uncovered === 1 ? "" : "s"} touched nothing this deep.`);
+    if (data.truncated) notes.push(`Top ${data.rows.length} only.`);
+    $("#st-paths-note", view).textContent = notes.join(" ");
+  };
+  api(`/api/stats/paths?depth=${depth}&${filterQ}`).then((data) => {
+    if (!view.isConnected) return;
+    drawn.paths = data;
+    drawPaths(data);
+  }).catch((err) => { if (err.status !== 401) $("#st-paths", view).innerHTML = errorBoxHtml(err); });
+
+  const drawUsers = (data) => {
+    const slot = $("#st-users", view);
+    if (!slot) return;
+    if (!data.rows.length) {
+      slot.innerHTML = '<p class="muted">No submits in this range.</p>';
+      return;
+    }
+    slot.innerHTML = rankChartSvg(data.rows, width(), {
+      title: "Submits by account",
+      key: (r) => r.user,
+      label: (r) => r.user,
+    }) + statsTableHtml(data.rows, ["Account", "Submits"], (r) =>
+      `<tr><td>${esc(r.user)}</td><td>${fmtNum(r.changes)}</td></tr>`);
+    slot.addEventListener("click", (e) => {
+      const row = e.target.closest(".chart-row");
+      if (row) go(statsHash(state, { user: row.dataset.key }));
+    });
+    if (data.truncated) $("#st-users-note", view).textContent = `Top ${data.rows.length} only.`;
+  };
+  api(`/api/stats/users?${filterQ}`).then((data) => {
+    if (!view.isConnected) return;
+    drawn.users = data;
+    drawUsers(data);
+  }).catch((err) => { if (err.status !== 401) $("#st-users", view).innerHTML = errorBoxHtml(err); });
+
+  // A resized window needs the charts drawn again at the new width, but
+  // not fetched again: re-running the route would blank three charts
+  // back to "Loading…" mid-drag.
+  _statsRedraw = () => {
+    if (!view.isConnected) { _statsRedraw = null; return; }
+    if (drawn.timeline) drawTimeline(drawn.timeline);
+    if (drawn.paths) drawPaths(drawn.paths);
+    if (drawn.users) drawUsers(drawn.users);
+  };
+});
+
+function presetFrom(days) {
+  const d = new Date();
+  d.setDate(d.getDate() - Number(days) + 1);
+  return ymd(d);
+}
+
+// The charts are drawn at the pixel width they were measured at — text
+// in a scaled viewBox would stretch — so a resized window needs them
+// drawn again. The Stats route hands over a redraw that reuses what it
+// already fetched; it clears itself once its view is off screen.
+let _statsResize = null;
+let _statsRedraw = null;
+window.addEventListener("resize", () => {
+  if (!_statsRedraw) return;
+  clearTimeout(_statsResize);
+  _statsResize = setTimeout(() => { if (_statsRedraw) _statsRedraw(); }, 250);
+});
+
+function go(hash) {
+  if (hash === location.hash) route();
+  else location.hash = hash;
+}
+
 registerRoute(/^#\/labels$/, async (view) => {
   spinner(view);
   let data;
@@ -3303,6 +3760,7 @@ const FEATURE_NOTES = {
   write: "Checkout, edit, upload, revert, shelve and submit: My Changes.",
   favorites: "Starred paths, and the dashboard on the depot root.",
   index: "The changelist index behind fast Changes queries and filters.",
+  stats: "Submit activity by day, path and account, from that same index.",
 };
 
 const APPEARANCE = [

@@ -54,9 +54,14 @@ process that shells out to the `p4` command-line client.
   work) on a changelist, inline comment threads on file lines and on
   changelists (including inside a diff), `@name` mentions with a topbar
   badge, and starred paths with a dashboard on the depot root.
+- **Stats** — submit activity by day/week/month/year, by depot path
+  (drill-down, with a depth stepper), and by account. The three charts
+  share one filter set and every bar links into the matching
+  changelists. Served from the local changelist index, so it counts
+  only what your Perforce protections let you see.
 - **Feature switches** — reviews, comments, mentions, write operations,
-  favorites and the changelist index can each be turned off: instance-wide
-  by an operator, or per user from the Settings page. See
+  favorites, stats and the changelist index can each be turned off:
+  instance-wide by an operator, or per user from the Settings page. See
   [Feature switches](#feature-switches).
 - **Dark mode** — follows the system by default with a manual
   auto/dark/light toggle.
@@ -109,6 +114,7 @@ account, so it follows them to any browser).
 | `write`     | checkout/edit/upload/revert/shelve/submit — a read-only instance |
 | `favorites` | starred paths and the depot-root dashboard                     |
 | `index`     | the changelist search index behind fast Changes queries        |
+| `stats`     | the Stats page and its aggregates (needs `index`)              |
 
 Instance-wide, either as JSON in `$P4WEB_DATA/features.json` (override
 the path with `P4WEB_FEATURES_FILE`):
