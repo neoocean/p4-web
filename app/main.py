@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
 
-from . import features, p4, sessions, workspace
+from . import features, p4, sessions, stats, workspace
 from . import index as change_index  # avoid clashing with the def index() route
 
 
@@ -999,7 +999,13 @@ def index_refresh(
 ):
     session = require_session(p4web_session)
     require_feature("index", session)
-    return p4_call(change_index.refresh, session["user"], session["ticket"], backfill=backfill)
+    result = p4_call(
+        change_index.refresh, session["user"], session["ticket"], backfill=backfill
+    )
+    # New changes landed, so the aggregates the Stats page cached are
+    # one refresh out of date.
+    stats.invalidate(session["user"])
+    return result
 
 
 @app.get("/api/index/search")
@@ -1044,6 +1050,111 @@ def index_search(
         "oldest": min((c["change"] for c in results), default=None),
         "pageSize": page_size,
     }
+
+
+# ---------- stats ----------
+
+
+def _stats_filters(date_from, date_to, path, user, tz):
+    """The filter set every axis shares, or a 400 explaining why not."""
+    try:
+        return stats.Filters(
+            date_from=date_from, date_to=date_to, path=path, user=user, tz=tz
+        )
+    except stats.StatsError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+def _stats_session(p4web_session):
+    """Session + the rollup running, for every stats route.
+
+    ensure_dirs() is cheap once the rollup is complete and does the
+    catch-up in the background when it isn't, so opening the page is
+    what starts the work — an instance where nobody looks at Stats
+    never pays for it.
+    """
+    session = require_session(p4web_session)
+    require_feature("stats", session)
+    change_index.ensure_dirs(session["user"])
+    return session
+
+
+@app.get("/api/stats/status")
+def stats_status(p4web_session: str | None = Cookie(default=None)):
+    """What the numbers are made of: index coverage and rollup progress."""
+    session = _stats_session(p4web_session)
+    return stats.coverage(session["user"])
+
+
+@app.get("/api/stats/summary")
+def stats_summary(
+    date_from: str | None = None,
+    date_to: str | None = None,
+    path: str | None = None,
+    user: str | None = None,
+    tz: int = 0,
+    p4web_session: str | None = Cookie(default=None),
+):
+    session = _stats_session(p4web_session)
+    filters = _stats_filters(date_from, date_to, path, user, tz)
+    return stats.summary(session["user"], filters)
+
+
+@app.get("/api/stats/timeline")
+def stats_timeline(
+    bucket: str = "month",
+    date_from: str | None = None,
+    date_to: str | None = None,
+    path: str | None = None,
+    user: str | None = None,
+    tz: int = 0,
+    p4web_session: str | None = Cookie(default=None),
+):
+    """Submits per day/week/month/year. A range too wide for the
+    requested bucket comes back one size up, with `promoted` set."""
+    session = _stats_session(p4web_session)
+    filters = _stats_filters(date_from, date_to, path, user, tz)
+    try:
+        return stats.timeline(session["user"], bucket=bucket, filters=filters)
+    except stats.StatsError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/stats/paths")
+def stats_paths(
+    depth: int = 2,
+    limit: int = stats.DEFAULT_LIMIT,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    path: str | None = None,
+    user: str | None = None,
+    tz: int = 0,
+    p4web_session: str | None = Cookie(default=None),
+):
+    session = _stats_session(p4web_session)
+    filters = _stats_filters(date_from, date_to, path, user, tz)
+    try:
+        return stats.paths(session["user"], depth=depth, filters=filters, limit=limit)
+    except stats.StatsError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/stats/users")
+def stats_users(
+    limit: int = stats.DEFAULT_LIMIT,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    path: str | None = None,
+    user: str | None = None,
+    tz: int = 0,
+    p4web_session: str | None = Cookie(default=None),
+):
+    session = _stats_session(p4web_session)
+    filters = _stats_filters(date_from, date_to, path, user, tz)
+    try:
+        return stats.users(session["user"], filters=filters, limit=limit)
+    except stats.StatsError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 # ---------- metadata browsers: labels / jobs / branches / streams / users ----------

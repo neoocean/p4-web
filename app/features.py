@@ -36,13 +36,16 @@ DEFAULTS = {
     "write": True,       # checkout/edit/upload/revert/shelve/submit
     "favorites": True,   # starred paths and the depot-root dashboard
     "index": True,       # the changelist search index behind fast Changes
+    "stats": True,       # submit activity by time, path and author
 }
 
 # A flag that only makes sense while another is on. Mentions are made
 # *in* comments: with comments off there is nowhere to write one, so it
-# reads as off regardless of what either layer says. The stored setting
-# is left alone so it returns when comments come back.
-DEPENDS = {"mentions": "comments"}
+# reads as off regardless of what either layer says. Stats are computed
+# entirely out of the change index, so without it there is nothing to
+# count. The stored setting is left alone so it returns when the
+# dependency comes back.
+DEPENDS = {"mentions": "comments", "stats": "index"}
 
 # Things deliberately NOT toggleable, because they are the app: depot
 # browsing, the file viewer, history/annotate/diff, changelist reading,
