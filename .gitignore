@@ -21,6 +21,7 @@ venv/
 /LESSONS.md
 /docs/code-review-secaudit-redteam.md
 /docs/plan-options.md
+/docs/plan-stats.md
 
 # OS / editor
 .DS_Store
